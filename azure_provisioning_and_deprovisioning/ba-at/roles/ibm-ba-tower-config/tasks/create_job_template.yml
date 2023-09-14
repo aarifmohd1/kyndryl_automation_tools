@@ -1,0 +1,28 @@
+---
+- name : Create a job template  {{ job_template_name }}
+  uri :
+    url: "{{tower_ip}}/api/v2/job_templates/"
+    user: "{{ login_user }}"
+    password: "{{ login_password }}"
+
+    method: POST
+    body:
+      name: "{{ job_template_name }}"
+      organization: "{{ org_id }}"
+      playbook: "{{ playbook_name }}"
+      project: "{{ project_id }}"
+      ask_variables_on_launch: yes
+      ask_limit_on_launch: "{{ask_limit}}"
+      inventory: "{{ inv_id }}"
+      extra_vars: "{{ job_extra_vars }} "
+      survey_enabled: "{{ enable_survey }}"
+#      ask_credential_on_launch: true
+#      credential: "{{ credential }}"
+    force_basic_auth: yes
+    validate_certs : no
+    body_format: json
+    status_code: 201
+  # delegate_to: localhost
+  register: job_template_out
+  when:
+    - project_out is defined

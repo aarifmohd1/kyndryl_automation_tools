@@ -1,0 +1,116 @@
+- name: Create VM using shared image
+  azure.azcollection.azure_rm_virtualmachine:
+    client_id: "{{lookup('env', 'AZURE_CLIENT_ID')}}"
+    secret: "{{lookup('env', 'AZURE_SECRET')}}"
+    subscription_id: "{{lookup('env', 'AZURE_SUBSCRIPTION_ID')}}"
+    tenant: "{{lookup('env', 'AZURE_TENANT')}}"
+    resource_group: "{{ resource_group }}"
+    name: "{{ vm_name }}"
+    # short_hostname: "{{vm_name}}"
+    location: "{{vm_location}}"
+    vm_size: "{{vm_size}}"
+    virtual_network: "{{vnet}}"
+    subnet: "{{subnet}}"
+    os_type: "{{os|capitalize}}"
+    public_ip_allocation: "{{public_ip_allocation_method}}"
+    # network_interfaces: "{{nic}}"
+    admin_username: "{{admin_user}}"
+    admin_password: "{{admin_pass}}" 
+    managed_disk_type: "{{disk_type}}"
+    ssh_password_enabled: "{{(image_name is search('RHEL') or image_name is search('rhel')) | ternary(ssh_enabled,omit)}}"
+    image:
+      id: "/subscriptions/{{ lookup('env', 'AZURE_SUBSCRIPTION_ID') }}/resourceGroups/{{ resource_group }}/providers/Microsoft.Compute/galleries/{{ shared_gallery_name }}/images/{{image_name}}/versions/{{current_image_version}}"
+      # name: "{{image_name}}"
+      # resource_group: "{{resource_group}}"
+      # version: "{{current_image_version}}"
+      # offer: "{{image_offer}}"
+      # publisher: "{{image_publisher}}"
+      # sku: "{{image_sku}}"
+      # version: "{{current_image_version}}"
+    tags:
+       project: Automation_Factory
+  register: vm_info
+#   when: image_name is search("RHEL") or image_name is search("rhel")
+
+# - name: Create VM using shared image
+#   azure_rm_virtualmachine:
+#     client_id: "{{lookup('env', 'AZURE_CLIENT_ID')}}"
+#     secret: "{{lookup('env', 'AZURE_SECRET')}}"
+#     subscription_id: "{{lookup('env', 'AZURE_SUBSCRIPTION_ID')}}"
+#     tenant: "{{lookup('env', 'AZURE_TENANT')}}"
+#     resource_group: "{{ resource_group }}"
+#     name: "{{ vm_name }}"
+#     short_hostname: "{{vm_name}}"
+#     location: "{{vm_location}}"
+#     vm_size: "{{vm_size}}"
+#     virtual_network: "{{vnet}}"
+#     subnet: "{{subnet}}"
+#     os_type: "{{os|capitalize}}"
+#     public_ip_allocation: "{{public_ip_allocation_method}}"
+#     # network_interfaces: "{{nic}}"
+#     admin_username: "{{admin_user}}"
+#     admin_password: "{{admin_pass}}" 
+#     managed_disk_type: "{{disk_type}}"
+#     winrm:
+#       - protocol: http
+#     image:
+#       id: "/subscriptions/{{ lookup('env', 'AZURE_SUBSCRIPTION_ID') }}/resourceGroups/{{ resource_group }}/providers/Microsoft.Compute/galleries/{{ shared_gallery_name }}/images/{{image_name}}/versions/{{current_image_version}}"
+#       # name: "{{image_name}}"
+#       # resource_group: "{{resource_group}}"
+#       # version: "{{current_image_version}}"
+#       # offer: "{{image_offer}}"
+#       # publisher: "{{image_publisher}}"
+#       # sku: "{{image_sku}}"
+#       # version: "{{current_image_version}}"
+#     tags:
+#        project: Automation_Factory
+#   register: vm_info
+#   when: image_name is search("WIN") or image_name is search("win") or image_name is search("Win")
+  
+
+# - set_fact:
+#     vm_pub_ip_address: "{{vm_info.ansible_facts.azure_vm.properties.networkProfile.networkInterfaces[0].properties.ipConfigurations[0].properties.publicIPAddress.properties.ipAddress}}"
+#   when: public_ip_allocation_method != Disabled
+
+- set_fact:
+    vm_private_ip_address: "{{vm_info.ansible_facts.azure_vm.properties.networkProfile.networkInterfaces[0].properties.ipConfigurations[0].properties.privateIPAddress}}"
+  # when: public_ip_allocation_method == Disabled
+- block:
+  - name: Change parameter in sshd_config file and restart ssh daemon 
+    uri:
+      url: "https://management.azure.com/subscriptions/{{lookup('env', 'AZURE_SUBSCRIPTION_ID')}}/resourceGroups/{{ resource_group }}/providers/Microsoft.Compute/virtualMachines/{{ vm_name }}/runCommand?api-version=2022-03-01"
+      method: POST
+      body_format: json
+      status_code: [200, 202]
+      force_basic_auth: no
+      validate_certs: False
+      headers:
+        Content-Type: "application/json"
+        Authorization: Bearer {{ token.stdout }}
+      body: >
+        {
+          "commandId": "RunShellScript",
+          "script": [ "sed -i 's/^PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config && sudo systemctl restart sshd","useradd -g wheel -m {{admin_user}} && echo {{admin_pass}} | passwd {{admin_user}} --stdin", "hostnamectl set-hostname {{vm_name}}" ]
+        }
+    when: image_sku != 'V8.4'
+
+  - name: Change parameter in sshd_config file and restart ssh daemon 
+    uri:
+      url: "https://management.azure.com/subscriptions/{{lookup('env', 'AZURE_SUBSCRIPTION_ID')}}/resourceGroups/{{ resource_group }}/providers/Microsoft.Compute/virtualMachines/{{ vm_name }}/runCommand?api-version=2022-03-01"
+      method: POST
+      body_format: json
+      status_code: [200, 202]
+      force_basic_auth: no
+      validate_certs: False
+      headers:
+        Content-Type: "application/json"
+        Authorization: Bearer {{ token.stdout }}
+      body: >
+        {
+          "commandId": "RunShellScript",
+          "script": [ "sed -i 's/^PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config && sudo systemctl restart sshd","echo {{admin_pass}} | passwd --stdin {{admin_user}}", "hostnamectl set-hostname {{vm_name}}" ]
+        }
+    when: image_sku == 'V8.4'
+  when: image_name is search('RHEL') or image_name is search('rhel')
+
+

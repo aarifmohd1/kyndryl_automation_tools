@@ -1,0 +1,102 @@
+- name: Login to azure CLI
+  become: no
+  shell: az login --service-principal --username "{{azure_user}}"  --password "{{azure_pass}}" --tenant "{{lookup('env', 'AZURE_TENANT')}}"
+  no_log: true
+
+
+- block:
+  - name: Create vm {{vm_name}}
+    become: no
+    shell: az vm create --resource-group "{{ resource_group }}" --name "{{vm_name}}" --image "/SharedGalleries/f181c5d4-7cf7-4805-941e-e992f97869af-{{shared_gallery_name|upper}}/Images/{{image_name}}/Versions/latest" --size "{{vm_size}}" --vnet-name "{{vnet}}" --subnet "{{subnet}}" --public-ip-address "{{ (public_ip_allocation_method == 'Disabled') | ternary('',public_ip_allocation_method) }}" --os-type "{{os|capitalize}}" --admin-username "{{admin_user}}" --ssh-key-values "{{public_keys}}" --nic-delete-option delete --os-disk-delete-option delete --data-disk-delete-option delete
+    register: vm_info_rhel
+
+  - set_fact:
+      vm_private_ip_address: "{{vm_info_rhel.stdout | from_json | json_query('privateIpAddress')}}"
+  when: image_name is search('RHEL') or image_name is search('rhel') or image_name is search('CENTOS') or image_name is search('centos') or image_name is search('SUSE') or image_name is search('suse')
+
+- block:
+  - name: Create vm {{vm_name}}
+    become: no
+    shell: az vm create --resource-group "{{ resource_group }}" --name "{{vm_name}}" --image "/SharedGalleries/f181c5d4-7cf7-4805-941e-e992f97869af-{{shared_gallery_name|upper}}/Images/{{image_name}}/Versions/latest" --size "{{vm_size}}" --vnet-name "{{vnet}}" --subnet "{{subnet}}" --public-ip-address "{{ (public_ip_allocation_method == 'Disabled') | ternary('',public_ip_allocation_method) }}" --os-type "{{os|capitalize}}" --admin-username "{{admin_user}}" --admin-password "{{admin_pass}}" --nic-delete-option delete --os-disk-delete-option delete --data-disk-delete-option delete
+    register: vm_info_win
+
+  - name: Open Port 5986
+    become: no
+    shell: az vm open-port --resource-group "{{ resource_group }}" --name "{{vm_name}}" --port 5986
+
+  - set_fact:
+          vm_private_ip_address: "{{vm_info_win.stdout | from_json | json_query('privateIpAddress')}}"
+  when: image_name is search("WIN") or image_name is search("win") or image_name is search("Win")
+  
+- name: Logout the current active account
+  become: no
+  shell: az logout
+
+- name: installing required python libraries
+  shell: "pip3 install adal msal msal-extensions"
+
+- name: copying token.yml file
+  template:
+    src: ./templates/token.yml.j2
+    dest: /tmp/token.yml
+
+- name: Get Token
+  shell: "python3 /tmp/token.yml"
+  register: token
+
+# - block:
+#   - name: Change parameter in sshd_config file and restart ssh daemon 
+#     uri:
+#       url: "https://management.azure.com/subscriptions/{{lookup('env', 'AZURE_SUBSCRIPTION_ID')}}/resourceGroups/{{ resource_group }}/providers/Microsoft.Compute/virtualMachines/{{ vm_name }}/runCommand?api-version=2022-03-01"
+#       method: POST
+#       body_format: json
+#       status_code: [200, 202]
+#       force_basic_auth: no
+#       validate_certs: False
+#       headers:
+#         Content-Type: "application/json"
+#         Authorization: Bearer {{ token.stdout }}
+#       body: >
+#         {
+#           "commandId": "RunShellScript",
+#           "script": [ "sed -i 's/^PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config && sudo systemctl restart sshd","useradd -g wheel -m {{admin_user}} && echo {{admin_pass}} | passwd {{admin_user}} --stdin", "hostnamectl set-hostname {{vm_name}}" ]
+#         }
+#     when: image_sku != 'V8.4'
+
+#   - name: Change parameter in sshd_config file and restart ssh daemon 
+#     uri:
+#       url: "https://management.azure.com/subscriptions/{{lookup('env', 'AZURE_SUBSCRIPTION_ID')}}/resourceGroups/{{ resource_group }}/providers/Microsoft.Compute/virtualMachines/{{ vm_name }}/runCommand?api-version=2022-03-01"
+#       method: POST
+#       body_format: json
+#       status_code: [200, 202]
+#       force_basic_auth: no
+#       validate_certs: False
+#       headers:
+#         Content-Type: "application/json"
+#         Authorization: Bearer {{ token.stdout }}
+#       body: >
+#         {
+#           "commandId": "RunShellScript",
+#           "script": [ "sed -i 's/^PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config && sudo systemctl restart sshd","echo {{admin_pass}} | passwd --stdin {{admin_user}}", "hostnamectl set-hostname {{vm_name}}" ]
+#         }
+#     when: image_sku == 'V8.4'
+#   when: image_name is search("RHEL") or image_name is search("rhel")
+
+- name: Change parameter in sshd_config file and restart ssh daemon 
+  uri:
+    url: "https://management.azure.com/subscriptions/{{lookup('env', 'AZURE_SUBSCRIPTION_ID')}}/resourceGroups/{{ resource_group }}/providers/Microsoft.Compute/virtualMachines/{{ vm_name }}/runCommand?api-version=2022-08-01"
+    method: POST
+    body_format: json
+    status_code: [200, 202]
+    force_basic_auth: no
+    validate_certs: False
+    headers:
+      Content-Type: "application/json"
+      Authorization: Bearer {{ token.stdout }}
+    body: >
+      {
+        "commandId": "RunPowerShellScript",
+        "script": [ "Remove-Item -Path WSMan:\\Localhost\\listener\\listener* -Recurse","$Cert = New-SelfSignedCertificate -CertstoreLocation Cert:\\LocalMachine\\My -DnsName {{vm_name}}","New-Item -Path WSMan:\\LocalHost\\Listener -Transport HTTPS -Address * -CertificateThumbPrint $Cert.Thumbprint -Force" ]
+      }
+  register: api_resp
+  when: image_name is search("WIN") or image_name is search("win")

@@ -1,0 +1,38 @@
+{
+  "dynamic_templates": [],
+  "properties": {
+    "calculated_day": {
+      "type": "date"
+    },
+    "users": {
+      "type": "long"
+    },
+    "projects": {
+      "type": "long"
+    },
+    "assets": {
+      "type": "long"
+    },
+    "jobs": {
+      "type": "long"
+    },
+    "purposes_test_of_deployment": {
+      "type": "long"
+    },
+    "purposes_education": {
+      "type": "long"
+    },
+    "purposes_code_development": {
+      "type": "long"
+    },
+    "purposes_client_demo": {
+      "type": "long"
+    },
+    "asset_list": {
+      "type": "keyword"
+    },
+    "users_checksums": {
+      "type": "keyword"
+    }
+  }
+}

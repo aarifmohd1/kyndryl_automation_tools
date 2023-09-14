@@ -1,0 +1,11 @@
+---
+- name : check whether a project  {{ project_name }} alreay present
+  uri :
+    url : "{{tower_ip}}/api/v2/organizations/{{ org_id }}/projects/?name={{ project_name }}"
+    user: "{{ login_user }}"
+    password: "{{ login_password }}"
+
+    method : GET
+    force_basic_auth: yes
+    validate_certs : no
+  register: project_out

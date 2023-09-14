@@ -1,0 +1,14 @@
+---
+
+- name : Check if there is a job template  {{ workflow_job_template_name }} for org {{ org_id }}
+  uri :
+    url : "{{tower_ip}}/api/v2/organizations/{{org_id}}/workflow_job_templates/?name={{ workflow_job_template_name}}"
+    user: "{{ login_user }}"
+    password: "{{ login_password }}"
+
+    method : GET
+    force_basic_auth: yes
+    validate_certs : no
+
+  # delegate_to: localhost
+  register : workflow_job_template_out

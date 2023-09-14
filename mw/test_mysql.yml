@@ -1,0 +1,59 @@
+---
+# Tasks on Tower
+- hosts: localhost
+  connection: local
+  tasks:
+    - name: Tasks on localhost
+      debug:
+        msg: "Example task on localhost"
+    # Calling socks tunnel role if we have windows endpoint
+    - name: Role ensures that the socks tunnel is setup
+      import_role:
+        name: socks_tunnel
+
+- hosts: all
+  ignore_errors: true
+  tasks:
+  - hosts: all
+  ignore_errors: true
+  tasks:
+    - name: acting on mysql
+      ansible.windows.win_powershell:
+        script: |
+          [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+          Install-PackageProvider -Name NuGet -force
+          #Install-Module MySQLCmdlets -force
+          Install-Module -Name MySQLCmdlets -force
+          Import-module MySQLCmdlets
+          Install-Script -Name Invoke-MySqlQuery -force
+          Invoke-MySQLQuery -Query 'SELECT * FROM actor' -MySQLUsername "root" -MySQLPassword "12345678" -MySQLDatabase "sakila" -MySQLServer "w2022-2" -force
+          hostname
+      register: temp
+      
+      
+    # - name: the mysql query
+      # mysql_query:
+        # login_db: sakila
+        # query: select * from actor;
+      # register: temp
+    
+    - name: Print the result
+      debug:
+        var: temp
+
+# - hosts: all
+  # ignore_errors: true
+  # tasks:
+    # - name: acting on mysql
+      # ansible.windows.win_command:
+        # cd "\Program Files\MySQL\MySQL Server 8.0\bin"
+        # mysql -u root -p12345678
+        # use sakila
+        # select * from actor;
+      # args:
+        # executable: cmd
+      # register: temp
+    
+    # - name: Print the result
+      # ansible.builtin.debug:
+        # var: temp.output

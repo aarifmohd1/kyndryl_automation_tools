@@ -1,0 +1,26 @@
+---
+# Tasks on Tower
+- hosts: localhost
+  connection: local
+  tasks:
+    - name: Tasks on localhost
+      debug:
+        msg: "Example task on localhost"
+    # Calling socks tunnel role if we have windows endpoint
+    - name: Role ensures that the socks tunnel is setup
+      import_role:
+        name: socks_tunnel
+
+- hosts: all
+  ignore_errors: true
+  tasks:
+    - name: acting on mssql
+      ansible.windows.win_powershell:
+        script: |
+          Import-Module -Name SQLPS
+          Invoke-Sqlcmd -Query "SELECT * from dbo.MSreplication_options"
+      register: temp
+    
+    - name: Print the result
+      ansible.builtin.debug:
+        var: temp.output

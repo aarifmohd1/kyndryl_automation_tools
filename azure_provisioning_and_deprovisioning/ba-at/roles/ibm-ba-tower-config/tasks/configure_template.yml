@@ -1,0 +1,221 @@
+- name : Find template ID
+  uri :
+    url : "{{tower_ip}}/api/v2/job_templates/?name={{job_template_name}}"
+    user: "{{ login_user }}"
+    password: "{{ login_password }}"
+
+    method : GET
+    force_basic_auth: yes
+    validate_certs : no
+    body_format: json
+    status_code:
+      - 200
+      - 201
+      - 202
+      - 204
+  # delegate_to: localhost
+  register : templ_id
+
+- name: Set job template id as a fact
+  set_fact:
+    job_template_id: "{{templ_id.json.results[0].id}}"
+  when: templ_id.json.results is defined
+
+- name: checking and assinging inventory
+  set_fact:
+    inventory_id: "{{ inv.json.results[0].id }}"
+  when: inv.json.results is defined
+
+- name: checking and assinging inventory
+  set_fact:
+    inventory_id: "{{ inv.json.id }}"
+  when: inv.json.id is defined and inv.json.id != ""
+
+- name: query the group, when inventory is already create
+  uri :
+    url: "{{tower_ip}}/api/v2/inventories/{{inventory_id}}/groups/"
+    user: "{{ login_user }}"
+    password: "{{ login_password }}"
+
+    method: GET
+    force_basic_auth: yes
+    validate_certs: no
+    body_format: json
+    status_code:
+      - 200
+      - 201
+      - 202
+      - 204
+  # delegate_to: localhost
+  register: temp_grp
+  when: temp_grp is not defined
+
+- name : Add Inventory to template {{job_template_name}}
+  uri :
+    url : "{{tower_ip}}/api/v2/job_templates/{{job_template_id}}/"
+    user: "{{ login_user }}"
+    password: "{{ login_password }}"
+
+    method : PATCH
+    body : >
+      { "description" : "Temp Host added to inventory {{ inventory_name }}",
+        "name": "{{job_template_name}}",
+        "inventory": "{{ inventory_id }}"
+       }
+#        "inventory": "{{temp_grp.json.results[0].inventory}}"
+
+    force_basic_auth: yes
+    validate_certs : no
+    body_format: json
+    status_code:
+      - 200
+      - 201
+      - 202
+      - 204
+  # delegate_to: localhost
+  register : temp_host
+
+- name : Check if Template {{job_template_name}} has any credential associated
+  uri :
+    url : "{{tower_ip}}/api/v2/job_templates/{{job_template_id}}/credentials/"
+    user: "{{ login_user }}"
+    password: "{{ login_password }}"
+
+    method : GET
+    force_basic_auth: yes
+    validate_certs : no
+    body_format: json
+    status_code:
+      - 200
+      - 201
+      - 202
+      - 204
+  # delegate_to: localhost
+  register : temp_cred_check_0
+
+- set_fact:
+    temp_cred_check : "{{temp_cred_check_0}}"
+
+- name: Debug temp_cred_check
+  debug: var=temp_cred_check
+
+- name : Disassociate Template {{job_template_name}} credential
+  uri :
+    url : "{{tower_ip}}/api/v2/job_templates/{{job_template_id}}/credentials/"
+    user: "{{ login_user }}"
+    password: "{{ login_password }}"
+
+    method : POST
+    body : >
+      { "id" : {{temp_cred_check.json.results[0].id}},
+        "disassociate" : "true"
+       }
+    force_basic_auth: yes
+    validate_certs : no
+    body_format: json
+    status_code:
+      - 200
+      - 201
+      - 202
+      - 204
+  # delegate_to: localhost
+  register : temp_cred_check_0
+  when:
+    - temp_cred_check.json.count != 0
+
+- name : Add Credential to template {{job_template_name}}
+  uri :
+    url : "{{tower_ip}}/api/v2/job_templates/{{job_template_id}}/credentials/"
+    user: "{{ login_user }}"
+    password: "{{ login_password }}"
+
+    method : POST
+    body : >
+      { "id" : {{ item }}
+       }
+    force_basic_auth: yes
+    validate_certs : no
+    body_format: json
+    status_code:
+      - 200
+      - 201
+      - 202
+      - 204
+  # delegate_to: localhost
+  register : temp_cred
+  with_items:
+    - "{{ machine_cred_id }}"
+    - "{{ vcenter_cred_id }}"
+    - "{{ at_cred_id }}"
+#    - "{{ nexus_cred_id }}"
+    - "{{ vault_cred_id}}"
+
+
+# Create job template survey spec with multiple choices of images retrieved from the repository
+- name : Creating job template survey spec for template id {{ job_template_id }}
+  uri :
+    url : "{{tower_ip}}/api/v2/job_templates/{{job_template_id}}/survey_spec/"
+    user: "{{ login_user }}"
+    password: "{{ login_password }}"
+    force_basic_auth: yes
+    method : POST
+    body : >
+      {
+        "description": "{{survey_description}}",
+        "name": "{{survey_name}}",
+        "spec": [
+            {
+              "required": true,
+              "min": null,
+              "max": null,
+              "default": "",
+              "question_description": "BDS repo server IP",
+              "choices": "",
+              "new_question": true,
+              "variable": "bds_repo_host",
+              "question_name": "BDS Repo server IP",
+              "type": "text"
+            },
+            {
+              "required": true,
+              "min": null,
+              "max": null,
+              "default": "",
+              "question_description": "BDS repo server port",
+              "choices": "",
+              "new_question": true,
+              "variable": "bds_repo_port",
+              "question_name": "BDS Repo server port",
+              "type": "text"
+            },
+            {
+              "required": true,
+              "min": null,
+              "max": null,
+              "default": "",
+              "question_description": "BDS repo user ID",
+              "choices": "",
+              "new_question": true,
+              "variable": "bds_repo_user",
+              "question_name": "BDS Repo user",
+              "type": "text"
+            },
+            {
+              "required": true,
+              "min": null,
+              "max": null,
+              "default": "",
+              "question_description": "BDS repo user password",
+              "choices": "",
+              "new_question": true,
+              "variable": "bds_repo_password",
+              "question_name": "Repo user password",
+              "type": "password"
+            }
+        ]
+      }
+    validate_certs : no
+    body_format: json
+  # delegate_to: localhost
+  register : vmimages
+  when: image_names is defined and image_names != ""

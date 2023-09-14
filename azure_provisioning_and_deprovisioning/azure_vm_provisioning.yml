@@ -1,0 +1,122 @@
+---
+- hosts: bastion
+  become: yes
+  vars:
+    - ansible_python_interpreter: /usr/bin/python3
+  # gather_facts: false
+  tasks:
+    # - name: Split the version name into list
+    #   set_fact:
+    #       current_image_version: "{{image_version.split('-')[-1]}}"
+    #       image_name: "{{image_version.split('-')[0]}}-{{image_version.split('-')[1]}}-{{image_version.split('-')[2]}}"
+    #       image_sku: "{{image_version.split('-')[2]}}"
+
+    # - name: installing required python libraries
+    #   shell: "pip3 install adal msal msal-extensions"
+
+    # - name: copying token.yml file
+    #   template:
+    #     src: ./roles/azure/templates/token.yml.j2
+    #     dest: /tmp/token.yml
+    
+    # - name: Get Token
+    #   shell: "python3 /tmp/token.yml"
+    #   register: token
+   
+    # - block:
+    #   - name: Replicate Image to the region selected
+    #     include_role:
+    #       name: azure
+    #       tasks_from: version_the_image
+    #     vars:
+    #       shared_image_name: "{{image_name}}"
+    #       shared_image_version: "{{current_image_version}}"
+    #       replica_count: 1
+    #       storage_account_type: Standard_LRS
+    #       shared_gallery_name: GoldenOSImages
+    #       region: "{{vm_location}}"
+    #       managed_image_name: "{{image_name}}-{{current_image_version.split('.')[0]}}-{{current_image_version.split('.')[1]}}"
+
+
+    #   - name: Get Replication Status
+    #     vars:
+    #       shared_image_name: "{{image_name}}"
+    #       shared_image_version: "{{current_image_version}}"
+    #       shared_gallery_name: GoldenOSImages
+    #       region: "{{vm_location}}"
+    #     uri:
+    #       # url: "https://management.azure.com/subscriptions/{{lookup('env', 'AZURE_SUBSCRIPTION_ID')}}/resourceGroups/{{ resource_group }}/providers/Microsoft.Compute/virtualMachines/{{ vm_name }}/runCommand?api-version=2022-03-01"
+    #       url: "https://management.azure.com/subscriptions/{{lookup('env', 'AZURE_SUBSCRIPTION_ID')}}/resourceGroups/{{ resource_group }}/providers/Microsoft.Compute/galleries/{{shared_gallery_name}}/images/{{shared_image_name}}/versions/{{shared_image_version}}?$expand=ReplicationStatus&api-version=2022-01-03"
+    #       method: GET
+    #       status_code: 200
+    #       force_basic_auth: no
+    #       validate_certs: False
+    #       headers:
+    #         Authorization: Bearer {{ token.stdout }}
+    #     register: replication_stat
+    #     until: replication_stat.json.properties.replicationStatus.aggregatedState == 'Completed'
+    #     retries: 50
+    #     delay: 30
+    #   when: vm_location != 'East Asia'
+
+    # - include_role:
+    #     name: azure
+    #     tasks_from: create_vm_from_image
+
+    - include_role:
+        name: azure
+        tasks_from: create_vm_from_shared_image
+
+
+- hosts: localhost
+  tasks:
+    - name: getting the ID for org {{ org_name }}
+      uri :
+        url : "{{lookup('env', 'TOWER_HOST')}}/api/v2/organizations/?name={{ org_name}}"
+        user: "{{ lookup('env', 'TOWER_USERNAME') }}"
+        password: "{{ lookup('env', 'TOWER_PASSWORD') }}"
+        force_basic_auth: yes
+        validate_certs : no
+        body_format: json
+        method : GET
+      register : org
+
+    - name: checking and assinging organization {{ org_name }}
+      set_fact:
+        org_id: "{{ org.json.results[0].id }}"
+      when: org.json.results is defined
+      failed_when:
+        - org.json.count == 0
+
+    - set_fact:
+        vm_private_ip_address: "{{hostvars['bastion']['vm_private_ip_address']}}"
+
+    - name: add host to inventory
+      import_role:
+        name: azure
+        tasks_from: add_host_to_at_inventory
+      vars:
+        inventory_group_name: "{{inventory_group}}"
+        inventory_host_name: "{{ vm_name }}"
+        inventory_host_ip: "{{vm_private_ip_address}}"
+        inventory_host_ostype: linux
+        inventory_groups: []
+        inventory: "{{inventoryName}}"
+        grp_id: []
+      when: image_name is search("RHEL") or image_name is search("rhel")
+
+    - name: add host to inventory
+      import_role:
+        name: azure
+        tasks_from: add_host_to_at_inventory
+      vars:
+        inventory_group_name: "{{inventory_group}}"
+        inventory_host_name: "{{ vm_name }}"
+        inventory_host_ip: "{{vm_private_ip_address}}"
+        inventory_host_ostype: windows
+        inventory_groups: []
+        inventory: "{{inventoryName}}"
+        grp_id: []
+      when: image_name is search("WIN") or image_name is search("win")
+
+  

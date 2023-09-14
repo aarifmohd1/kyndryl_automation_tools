@@ -1,0 +1,11 @@
+# - name: List shared image versions
+#   become: no
+#   shell: az sig image-version list-shared --location eastus --gallery-unique-name "f181c5d4-7cf7-4805-941e-e992f97869af-{{shared_gallery_name|upper}}" --gallery-image-definition "{{item}}"
+#   register: image_version
+
+# - debug: 
+#     msg: "{{image_version.stdout}}"
+
+# - name: Set image version as fact
+#   set_fact:
+#     image_versions: "{{ image_versions + [image_version.stdout_lines | join('')] }}"

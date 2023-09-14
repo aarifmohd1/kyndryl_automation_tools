@@ -1,0 +1,52 @@
+- name : Creating job template survey spec for template id {{ job_template_id }}
+  uri :
+    url : "{{lookup('env', 'TOWER_HOST')}}/api/v2/job_templates/{{job_template_id}}/survey_spec/"
+    user: "{{ lookup('env', 'TOWER_USERNAME') }}"
+    password: "{{ lookup('env', 'TOWER_PASSWORD') }}"
+    force_basic_auth: yes
+    method : POST
+    body : >
+      {
+        "description": "Survey for create image",
+        "name": "azure",
+        "spec": [
+            {
+                "question_name": "Organization name",
+                "question_description": "",
+                "required": true,
+                "type": "text",
+                "variable": "org_name",
+                "min": 0,
+                "max": 1024,
+                "default": "",
+                "choices": "",
+                "new_question": true
+            },
+            {
+                "question_name": "Resource group",
+                "question_description": "",
+                "required": true,
+                "type": "text",
+                "variable": "resource_group",
+                "min": 0,
+                "max": 1024,
+                "default": "",
+                "choices": ""
+            },
+            {
+                "question_name": "Image gallery name",
+                "question_description": "",
+                "required": true,
+                "type": "text",
+                "variable": "shared_gallery_name",
+                "min": 0,
+                "max": 1024,
+                "default": "GoldenOSImages",
+                "choices": ""
+            }
+        ]
+      }
+    validate_certs : no
+    body_format: json
+  # delegate_to: localhost
+  register : job_survey_out

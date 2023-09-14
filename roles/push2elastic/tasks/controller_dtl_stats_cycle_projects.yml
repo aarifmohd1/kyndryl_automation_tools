@@ -1,0 +1,9 @@
+
+- name: Get projects
+  shell: '{{ hostvars["localhost"]["curl_cmd"] }}
+    "$TOWER_HOST/api/v2/projects/?format=json&organization__name=dtl&page_size={{ page_size_runtime }}&page={{ item }}{{ date_created_runtime }}"'
+  register: projects
+
+- name: Store projects
+  set_fact:
+    projects_all: "{{ projects_all | default([]) + (projects.stdout | from_json).results }}"

@@ -1,0 +1,20 @@
+- hosts: all
+  ignore_errors: true
+  tasks:
+    - name: Create script
+      become: true
+      become_user: was
+      copy:
+        dest: /tmp/getCell.py
+        content: |
+          print AdminControl.getCell()
+
+    - name: Start server
+      become: true
+      become_user: was
+      command: "/opt/IBM/WebSphere/AppServer/profiles/ansibletesting/bin/startServer.sh wasansibletesting"
+
+    - name: Interact with server
+      become: true
+      become_user: was
+      shell: "/opt/IBM/WebSphere/AppServer/profiles/ansibletesting/bin/wsadmin.sh -user wasadmin -password pass123456789 -f /tmp/getCell.py"

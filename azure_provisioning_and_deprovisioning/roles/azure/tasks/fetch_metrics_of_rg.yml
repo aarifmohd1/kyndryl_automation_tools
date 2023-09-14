@@ -1,0 +1,44 @@
+- name: copying token.yml file
+  template:
+    src: ./templates/token.yml.j2
+    dest: /tmp/token.yml
+
+- name: Get Token
+  shell: "python3 /tmp/token.yml"
+  register: token
+
+- name: Get Metrics for rg :- {{resource_group}}
+  uri:
+    url: "https://management.azure.com/subscriptions/{{lookup('env', 'AZURE_SUBSCRIPTION_ID')}}/resourceGroups/{{resource_group}}/providers/Microsoft.CostManagement/query?api-version=2022-10-01"
+    method: POST
+    body_format: json
+    status_code: [200, 202]
+    force_basic_auth: no
+    validate_certs: False
+    headers:
+      Content-Type: "application/json"
+      Authorization: Bearer {{ token.stdout }}
+    body: >
+      {
+        "type": "Usage",
+        "timeframe": "MonthToDate",
+        "dataset": {
+        "granularity": "None",
+        "aggregation": {
+          "totalCost": {
+            "name": "PreTaxCost",
+            "function": "Sum"
+          }
+        },
+        "grouping": [
+          {
+            "type": "Dimension",
+            "name": "ResourceType"
+          }
+        ]
+      }
+      }
+  register: metric_resp
+
+- debug:
+    msg: "{{metric_resp}}"

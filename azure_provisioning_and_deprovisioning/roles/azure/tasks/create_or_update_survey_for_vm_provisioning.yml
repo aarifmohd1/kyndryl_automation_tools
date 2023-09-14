@@ -1,0 +1,179 @@
+- name : Creating job template survey spec for template id {{ job_template_id }}
+  uri :
+    url : "{{lookup('env', 'TOWER_HOST')}}/api/v2/job_templates/{{job_template_id}}/survey_spec/"
+    user: "{{ lookup('env', 'TOWER_USERNAME') }}"
+    password: "{{ lookup('env', 'TOWER_PASSWORD') }}"
+    force_basic_auth: yes
+    method : POST
+    body : >
+      {
+        "description": "azure env details",
+        "name": "azure",
+        "spec": [
+            {
+                "question_name": "Organization name",
+                "question_description": "",
+                "required": true,
+                "type": "text",
+                "variable": "org_name",
+                "min": 0,
+                "max": 1024,
+                "default": "{{org_name}}",
+                "choices": "",
+                "new_question": true
+            },
+            {
+                "question_name": "Resource group",
+                "question_description": "",
+                "required": true,
+                "type": "text",
+                "variable": "resource_group",
+                "min": 0,
+                "max": 1024,
+                "default": "{{resource_group}}",
+                "choices": ""
+            },
+            {
+                "question_name": "Image gallery name",
+                "question_description": "",
+                "required": true,
+                "type": "text",
+                "variable": "shared_gallery_name",
+                "min": 0,
+                "max": 1024,
+                "default": "{{shared_gallery_name}}",
+                "choices": ""
+            },
+            {
+                "question_name": "Image Name",
+                "question_description": "Select a version for image",
+                "required": true,
+                "type": "multiplechoice",
+                "variable": "image_name",
+                "min": null,
+                "max": null,
+                "default": "",
+                "choices": "{{images}}",
+                "new_question": true
+            },
+            {
+                "question_name": "Os type",
+                "question_description": "",
+                "required": true,
+                "type": "multiplechoice",
+                "variable": "os",
+                "min": null,
+                "max": null,
+                "default": "linux",
+                "choices": "linux\nwindows",
+                "new_question": true
+            },
+
+            {
+                "question_name": "Vm name",
+                "question_description": "",
+                "required": true,
+                "type": "text",
+                "variable": "vm_name",
+                "min": 0,
+                "max": 1024,
+                "default": "testVM",
+                "choices": "",
+                "new_question": true
+            },
+            {
+                "question_name": "Vm size",
+                "question_description": "",
+                "required": true,
+                "type": "text",
+                "variable": "vm_size",
+                "min": 0,
+                "max": 1024,
+                "default": "Standard_D2s_v3",
+                "choices": ""
+            },
+            {
+                "question_name": "Vm admin user",
+                "question_description": "",
+                "required": true,
+                "type": "text",
+                "variable": "admin_user",
+                "min": 0,
+                "max": 1024,
+                "default": "ansible",
+                "choices": "",
+                "new_question": true
+            },
+            {
+                "question_name": "SSH Public Keys",
+                "question_description": "Space-separated list of SSH public keys, required for linux servers",
+                "required": false,
+                "type": "text",
+                "variable": "public_keys",
+                "min": 0,
+                "max": 1804,
+                "default": "",
+                "choices": ""
+            },
+            {
+                "question_name": "Admin user password",
+                "question_description": "Admin user password required for windows servers",
+                "required": false,
+                "type": "password",
+                "variable": "admin_pass",
+                "min": 4,
+                "max": 1024,
+                "default": "",
+                "choices": ""
+            },
+            {
+                "question_name": "Virtual network name",
+                "question_description": "",
+                "required": true,
+                "type": "text",
+                "variable": "vnet",
+                "min": 0,
+                "max": 1024,
+                "default": "dtl-vnet",
+                "choices": "",
+                "new_question": true
+            },
+            {
+                "question_name": "Subnet",
+                "question_description": "",
+                "required": true,
+                "type": "text",
+                "variable": "subnet",
+                "min": 0,
+                "max": 1024,
+                "default": "dtl-hosts-subnet",
+                "choices": ""
+            },
+            {
+                "question_name": "Azure user",
+                "question_description": "Azure service principal user",
+                "required": true,
+                "type": "text",
+                "variable": "azure_user",
+                "min": 0,
+                "max": 1024,
+                "default": "{{azure_user}}",
+                "choices": ""
+            },
+            {
+                "question_name": "Azure password",
+                "question_description": "Azure service principal password",
+                "required": true,
+                "type": "password",
+                "variable": "azure_pass",
+                "min": 0,
+                "max": 64,
+                "default": "{{azure_pass}}",
+                "choices": ""
+            }
+        ]
+      }
+    validate_certs : no
+    body_format: json
+  # delegate_to: localhost
+  register : job_survey_out

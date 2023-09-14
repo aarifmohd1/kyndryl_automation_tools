@@ -1,0 +1,17 @@
+- hosts: all
+  ignore_errors: true
+  tasks:
+    - name: retrieve a sample query result
+      become: true
+      become_user: oracle
+      shell: |   
+        sleep 45;
+        sqlplus system/oracle@freepdb1 << EOF
+         select * from sys.employees;
+        EOF
+        exit;
+      register: ora_result
+      
+    - name: show results 
+      ansible.builtin.debug: 
+        msg: "{{ ora_result }}"       

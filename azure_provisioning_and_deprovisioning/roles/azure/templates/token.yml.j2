@@ -1,0 +1,24 @@
+import adal
+import os
+
+# Tenant ID for your Azure Subscription
+TENANT_ID = "{{lookup('env', 'AZURE_TENANT')}}"
+
+# Your Service Principal App ID
+CLIENT = "{{lookup('env', 'AZURE_CLIENT_ID')}}"
+
+# Your Service Principal Password
+KEY = "{{lookup('env', 'AZURE_SECRET')}}"
+
+
+subscription_id = "{{lookup('env', 'AZURE_SUBSCRIPTION_ID')}}"
+
+authority_url = 'https://login.microsoftonline.com/'+TENANT_ID
+context = adal.AuthenticationContext(authority_url)
+token = context.acquire_token_with_client_credentials(
+    resource='https://management.azure.com/',
+    client_id=CLIENT,
+    client_secret=KEY
+)
+
+print(token["accessToken"])

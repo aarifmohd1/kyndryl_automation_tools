@@ -1,0 +1,18 @@
+- name: Add image to image gallery
+  azure_rm_galleryimage:
+    client_id: "{{lookup('env', 'AZURE_CLIENT_ID')}}"
+    secret: "{{lookup('env', 'AZURE_SECRET')}}"
+    subscription_id: "{{lookup('env', 'AZURE_SUBSCRIPTION_ID')}}"
+    tenant: "{{lookup('env', 'AZURE_TENANT')}}"
+    resource_group: "{{ resource_group }}"
+    gallery_name: "{{ shared_gallery_name }}"
+    name: "{{ shared_image_name }}"
+    os_type: "{{os}}"
+    os_state: generalized
+    identifier:
+      publisher: "{{publisher_name}}"
+      offer: "{{offer_name}}"
+      sku: "{{sku_name}}"
+    description: linux image
+    tags:
+       project: Automation_Factory

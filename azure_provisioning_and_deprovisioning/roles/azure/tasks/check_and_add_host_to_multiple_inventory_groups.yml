@@ -1,0 +1,104 @@
+---
+- name : Query for {{inventory_host_name}} inside inventory{{in_id}}
+  uri :
+    url : "{{ lookup('env', 'TOWER_HOST') }}/api/v2/inventories/{{in_id}}/hosts/?name={{inventory_host_name}}"
+    user: "{{ lookup('env', 'TOWER_USERNAME') }}"
+    password: "{{ lookup('env', 'TOWER_PASSWORD') }}"
+    method : GET
+    force_basic_auth: yes
+    validate_certs : no
+    body_format: json
+  register : inv_host_details
+
+- debug:
+    msg : "Host {{inventory_host_name}} already exists in the inventory {{in_id}}"
+  when: inv_host_details.json.count != 0
+
+- name : Query for {{inventory_host_name}} inside group {{item}}
+  uri :
+    url : "{{ lookup('env', 'TOWER_HOST') }}/api/v2/groups/{{item}}/hosts/?name={{inventory_host_name}}"
+    user: "{{ lookup('env', 'TOWER_USERNAME') }}"
+    password: "{{ lookup('env', 'TOWER_PASSWORD') }}"
+    method : GET
+    force_basic_auth: yes
+    validate_certs : no
+    body_format: json
+  register : group_host_details
+
+- debug:
+    msg : "Host {{inventory_host_name}} already exists in the group {{item}}"
+  when: group_host_details.json.count != 0
+
+- name: Set host vars template path for linux
+  set_fact:
+    host_vars: "./templates/hostVarsLinux.j2"
+  when: inventory_host_ostype == "linux"
+
+- name: Set host vars template path for windows
+  set_fact:
+    host_vars: "./templates/hostVarsWindows.j2"
+  when: inventory_host_ostype == "windows"
+
+- name: Add host if {{inventory_host_name}} does not exists in the group {{item}}
+  block:
+    - name: copying the template file
+      template:
+          src: "{{host_vars}}"
+          dest: "/tmp/hostVars.json"
+          mode: 0644
+          force: yes
+
+    - name: display the content
+      shell: cat /tmp/hostVars.json
+      register: hostVar
+
+    - debug:
+        msg: "{{hostVar}}"
+      
+
+    - name : Add host to group {{item}}
+      uri :
+        url : "{{ lookup('env', 'TOWER_HOST') }}/api/v2/groups/{{item}}/hosts/"
+        user: "{{ lookup('env', 'TOWER_USERNAME') }}"
+        password: "{{ lookup('env', 'TOWER_PASSWORD') }}"
+        method : POST
+        body : {
+            "name": "{{ inventory_host_name }}",
+            "inventory": "{{in_id}}",
+            "variables": "{{hostVar.stdout | string}}"
+          }
+        force_basic_auth: yes
+        validate_certs : no
+        body_format: json
+        status_code:
+          - 200
+          - 201
+          - 202
+          - 204
+      register : host_out
+
+  when: inv_host_details.json.count == 0 and group_host_details.json.count == 0
+
+- name: Add host if {{inventory_host_name}} does not exists in the group {{item}}
+  block:
+    - name : Add host to group {{item}}
+      uri :
+        url : "{{ lookup('env', 'TOWER_HOST') }}/api/v2/groups/{{item}}/hosts/"
+        user: "{{ lookup('env', 'TOWER_USERNAME') }}"
+        password: "{{ lookup('env', 'TOWER_PASSWORD') }}"
+        method : POST
+        body : >
+          {
+            "id": {{inv_host_details.json.results[0].id}}
+          }
+        force_basic_auth: yes
+        validate_certs : no
+        body_format: json
+        status_code:
+          - 200
+          - 201
+          - 202
+          - 204
+      # delegate_to: localhost
+      register : host_out
+  when: inv_host_details.json.count != 0 and group_host_details.json.count == 0

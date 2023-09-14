@@ -1,0 +1,19 @@
+---
+- hosts: bastion
+  become: yes
+  vars:
+    - ansible_python_interpreter: /usr/bin/python3
+  tasks:
+    # - include_role:
+    #     name: azure
+    #     tasks_from: fetch_vm_info
+
+    - include_role:
+        name: azure
+        tasks_from: delete_vm_from_azure
+      
+- hosts: localhost
+  tasks:
+    - include_role:
+        name: azure
+        tasks_from: delete_host_from_inventory

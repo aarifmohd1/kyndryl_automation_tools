@@ -1,0 +1,19 @@
+---
+    - name: list versions of an image
+      azure.azcollection.azure_rm_galleryimageversion_info:
+          client_id: "{{lookup('env', 'AZURE_CLIENT_ID')}}"
+          secret: "{{lookup('env', 'AZURE_SECRET')}}"
+          subscription_id: "{{lookup('env', 'AZURE_SUBSCRIPTION_ID')}}"
+          tenant: "{{lookup('env', 'AZURE_TENANT')}}"
+          resource_group: "{{resource_group}}"
+          gallery_name: "{{shared_gallery_name}}"
+          gallery_image_name: "{{item.name}}"
+      register: available_image_version
+
+    - name: Set image version as fact
+      set_fact:
+          image_versions: "{{ image_versions + [available_image_version.versions] }}"
+
+    - debug:
+         msg: "{{image_versions}}"
+  

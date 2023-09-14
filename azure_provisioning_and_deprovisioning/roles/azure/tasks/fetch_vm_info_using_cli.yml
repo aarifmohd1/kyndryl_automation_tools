@@ -1,0 +1,9 @@
+- name: Get info for VM - {{vm_name}}
+  become: no
+  shell: az vm show --resource-group "{{resource_group}}" --name "{{vm_name}}" --query "networkProfile.networkInterfaces[0].id"
+  register: nic_id
+
+- name: Get network interfaces for VM - {{vm_name}}
+  become: no
+  shell: az network nic show --ids "{{nic_id.stdout}}" --query "networkSecurityGroup.id"
+  register: nsg_id

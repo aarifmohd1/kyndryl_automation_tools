@@ -1,0 +1,63 @@
+- name: getting the ID for org {{ org_name }}
+  uri :
+    url : "{{lookup('env', 'TOWER_HOST')}}/api/v2/organizations/?name={{ org_name}}"
+    user: "{{ lookup('env', 'TOWER_USERNAME') }}"
+    password: "{{ lookup('env', 'TOWER_PASSWORD') }}"
+    force_basic_auth: yes
+    validate_certs : no
+    body_format: json
+    method : GET
+  register : org
+
+- name: checking and assinging organization {{ org_name }}
+  set_fact:
+    org_id: "{{ org.json.results[0].id }}"
+  when: org.json.results is defined
+  failed_when:
+    - org.json.count == 0
+
+- name:  query inventory {{ inventory }}
+  import_role:
+    name: ba-at
+    tasks_from: get_inventory
+  vars:
+    tower_ip: "{{ lookup('env', 'TOWER_HOST') }}"
+    login_user: "{{ lookup('env', 'TOWER_USERNAME') }}"
+    login_password: "{{ lookup('env', 'TOWER_PASSWORD') }}"
+    inventory_name: "{{ inventoryName }}"
+
+- name: checking and assinging inventory id, if get call success
+  set_fact:
+    in_id: "{{ inv.json.results[0].id }}"
+  when: inv.json.results is defined
+
+- name: Set vm hostname as Inventory host name
+  set_fact:
+    inventory_host_name: "{{vm_name}}"
+
+- name : Query for {{inventory_host_name}} inside inventory{{in_id}}
+  uri :
+    url : "{{ lookup('env', 'TOWER_HOST') }}/api/v2/inventories/{{in_id}}/hosts/?name={{inventory_host_name}}"
+    user: "{{ lookup('env', 'TOWER_USERNAME') }}"
+    password: "{{ lookup('env', 'TOWER_PASSWORD') }}"
+    method : GET
+    force_basic_auth: yes
+    validate_certs : no
+    body_format: json
+  register : inv_host_details
+
+- name: checking and assinging host id, if get call success
+  set_fact:
+    host_id: "{{ inv_host_details.json.results[0].id }}"
+  when: inv_host_details.json.results is defined and inv_host_details.json.results | length != 0
+
+- name: Delete host {{inventory_host_name}} from {{inventoryName}} inventory
+  uri:
+    url: "{{ lookup('env', 'TOWER_HOST') }}/api/v2/hosts/{{host_id}}/"
+    user: "{{ lookup('env', 'TOWER_USERNAME') }}"
+    password: "{{ lookup('env', 'TOWER_PASSWORD') }}"
+    method: DELETE
+    force_basic_auth: yes
+    validate_certs: no
+    status_code: 204
+  when: host_id is defined

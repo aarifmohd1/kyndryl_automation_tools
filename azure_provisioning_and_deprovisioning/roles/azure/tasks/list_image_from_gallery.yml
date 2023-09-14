@@ -1,0 +1,28 @@
+- name: List gallery images in a gallery.
+  azure.azcollection.azure_rm_galleryimage_info:
+    client_id: "{{lookup('env', 'AZURE_CLIENT_ID')}}"
+    secret: "{{lookup('env', 'AZURE_SECRET')}}"
+    subscription_id: "{{lookup('env', 'AZURE_SUBSCRIPTION_ID')}}"
+    tenant: "{{lookup('env', 'AZURE_TENANT')}}"
+    resource_group: "{{ resource_group }}"
+    gallery_name: "{{ shared_gallery_name }}"
+  register: image_list
+
+# - debug:
+#     msg: "{{image_list | to_nice_json}}"
+
+# - name: Just the Names
+#   set_fact: 
+#     images_list: "{{ image_list.images | json_query(jmesquery)}}"
+#   vars:
+#     jmesquery: "[*].name"
+
+- block:
+  - name: Set image list as fact
+    set_fact:
+        images: "{{images + [item.name]}}"
+    loop: "{{image_list.images}}"
+
+  - set_fact:
+      images: "{{images | join('\\n')}}"
+  when: image_list.images != ''

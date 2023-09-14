@@ -1,0 +1,7 @@
+- hosts: all
+  ignore_errors: true
+  tasks:
+    - name: Test TWS
+      become: true
+      become_user: maestro
+      shell: ". /opt/IBM/TWA/twa_env.sh;/opt/IBM/TWA/TWS/StartUp;conman sc;conman start RH86-1"

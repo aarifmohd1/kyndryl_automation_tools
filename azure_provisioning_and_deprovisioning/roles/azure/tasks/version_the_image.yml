@@ -1,0 +1,24 @@
+- name: Create or update gallery image version.
+  azure.azcollection.azure_rm_galleryimageversion:
+    client_id: "{{lookup('env', 'AZURE_CLIENT_ID')}}"
+    secret: "{{lookup('env', 'AZURE_SECRET')}}"
+    subscription_id: "{{lookup('env', 'AZURE_SUBSCRIPTION_ID')}}"
+    tenant: "{{lookup('env', 'AZURE_TENANT')}}"
+    resource_group: serverbuild
+    gallery_name: "{{ shared_gallery_name }}"
+    gallery_image_name: "{{ shared_image_name }}"
+    name: "{{shared_image_version}}"
+    publishing_profile:
+      end_of_life_date: "{{image_expiry}}"
+      exclude_from_latest: yes
+      replica_count: "{{replica_count}}"
+      storage_account_type: "{{storage_account_type}}"
+      target_regions:
+        - name: 'East Asia'
+        - name: "{{region}}"
+          regional_replica_count: "{{replica_count}}"
+      managed_image:
+        name: "{{ managed_image_name }}"
+        resource_group: serverbuild
+    tags:
+       project: Automation_Factory

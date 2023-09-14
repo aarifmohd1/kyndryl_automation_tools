@@ -1,0 +1,21 @@
+---
+# Tasks on Tower
+- hosts: localhost
+  connection: local
+  tasks:
+    - name: Tasks on localhost
+      debug:
+        msg: "Example task on localhost"
+    # Calling socks tunnel role if we have windows endpoint
+    - name: Role ensures that the socks tunnel is setup
+      import_role:
+        name: socks_tunnel
+
+- hosts: all
+  ignore_errors: true
+  tasks:
+    - name: test connection
+      win_command: ipconfig
+
+    - name: Check TSM
+      win_command: "C:\\Program Files\\Tivoli\\TSM\\baclient\\dsmadmc.exe -id=testadmin -password=testadmpass1234 -outfile=save.out query node"

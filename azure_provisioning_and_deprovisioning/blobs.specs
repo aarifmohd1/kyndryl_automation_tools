@@ -1,0 +1,9 @@
+keys:
+  result:
+    value: "{{ blob_list }}"
+    top: EnumerationResults/Blobs/Blob
+    items:
+      name: name
+vars:
+  blob_list:
+    name: "{{ item.name }}"

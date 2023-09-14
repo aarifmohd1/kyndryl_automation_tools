@@ -1,0 +1,36 @@
+- name: Test non-Windows
+  register: conn_result_ux
+  command: "hostname"
+  when: (ansible_os_family is defined) and (ansible_os_family != "Windows")
+
+- name: Test Windows
+  register: conn_result_win
+  win_command: "hostname"
+  when: (ansible_os_family is defined) and (ansible_os_family == "Windows")
+
+- name: Set result
+  set_fact:
+    connection_result: "{{ result_ux if (':OK' in result_ux) else result_win }}"
+  vars:
+    result_ux: "{{ inventory_hostname }}:{{ ansible_hostname | d(NA) }}:{{ 'OK' if (conn_result_ux.stdout is defined and conn_result_ux.stdout | length > 0) else 'FAILED' }}"
+    result_win: "{{ inventory_hostname }}:{{ ansible_hostname | d(NA) }}:{{ 'OK' if (conn_result_win.stdout is defined and conn_result_win.stdout | length > 0) else 'FAILED' }}"
+
+- name: Add line to localhost
+  delegate_to: localhost
+  ansible.builtin.lineinfile:
+    path: /tmp/connection_test
+    line: "inventory name:image hostname:status"
+    create: yes
+
+- name: Add line to localhost
+  delegate_to: localhost
+  ansible.builtin.lineinfile:
+    path: /tmp/connection_test
+    line: "{{ connection_result }}"
+    create: yes
+
+- set_stats:
+    per_host: true
+    data:
+      connection: "{{ connection_result }}"
+

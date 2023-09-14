@@ -1,0 +1,31 @@
+# - name: Get results into single variable
+#   set_fact: 
+#     connection_results: "{{ hostvars | dict2items | selectattr('value.connection_result', 'defined') | map(attribute='value.connection_result') }}"
+
+# - name: Get results from hosts
+#   set_fact:
+#     results_machine_readable: >-
+#       {{
+#       (results_machine_readable | d({})) | combine({
+#         hostvars[item]['inventory_hostname']: hostvars[item]['connection_result']
+#         }, recursive=true)
+#       }}
+#   loop: "{{ groups['all'] }}"
+
+# - name: Print results
+#   debug:
+#     var: results_machine_readable
+
+- name: Print file with results
+  command: cat /tmp/connection_test
+
+# - name: Create python3 script
+#   no_log: true
+#   template:
+#     src: push2elastic.py
+#     dest: "./push2elastic.py"
+
+# - name: Execute python script
+#   command: "python3 ./push2elastic.py"
+#   register: elastic_output
+#   ignore_errors: true

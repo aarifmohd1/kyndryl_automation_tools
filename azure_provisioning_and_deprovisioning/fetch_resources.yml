@@ -1,0 +1,12 @@
+- hosts: bastion
+  become: yes
+  vars:
+    - ansible_python_interpreter: /usr/bin/python3
+  tasks:
+    - include_role:
+        name: azure
+        tasks_from: fetch_all_resources_of_rg
+
+    - include_role:
+        name: azure
+        tasks_from: fetch_metrics_of_rg

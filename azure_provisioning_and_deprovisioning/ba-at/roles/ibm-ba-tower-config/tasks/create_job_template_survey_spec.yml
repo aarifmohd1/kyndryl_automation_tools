@@ -1,0 +1,30 @@
+---
+- name : Creating job template survey spec for template id {{ job_template_id }}
+  uri :
+    url : "{{tower_ip}}/api/v2/job_templates/{{job_template_id}}/survey_spec/"
+    user: "{{ login_user }}"
+    password: "{{ login_password }}"
+    force_basic_auth: yes
+    method : POST
+    body : >
+      {
+        "description": "Select VM Images",
+        "name": "VM Images",
+        "spec": [
+            {
+              "required": true,
+              "min": null,
+              "max": null,
+              "question_description": {{survey_description}},
+              "choices": {{survey_choices}},
+              "new_question": true,
+              "variable": "survey_variable",
+              "question_name": {{survey_question}},
+              "type": "multiselect"
+            }
+          ]
+      }
+    validate_certs : no
+    body_format: json
+  # delegate_to: localhost
+  register : vmimages

@@ -1,0 +1,26 @@
+---
+- name : Create a project  {{ project_name }}
+  uri :
+    url : "{{tower_ip}}/api/v2/organizations/{{ org_id }}/projects/"
+    user: "{{ login_user }}"
+    password: "{{ login_password }}"
+
+    method : POST
+    body :
+      allow_override: true
+      name: "{{ project_name }}"
+      organization: "{{ org_id }}"
+      scm_type: "{{ scm_type }}"
+      scm_url: "{{ scm_url }}"
+      scm_branch: "{{ scm_branch }}"
+      credential: "{{ scm_cred }}"
+      allow_override: yes
+      scm_update_on_launch: yes
+    force_basic_auth: yes
+    validate_certs : no
+    body_format: json
+    status_code:
+      - 200
+      - 201
+      - 202
+  register: project_out

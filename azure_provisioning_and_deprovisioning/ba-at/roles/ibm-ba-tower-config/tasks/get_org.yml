@@ -1,0 +1,12 @@
+---
+- name : Get Organization {{ org_name }} ID by name
+  uri :
+    url : "{{tower_ip}}/api/v2/organizations/?name={{ org_name}}"
+    user: "{{ login_user }}"
+    password: "{{ login_password }}"
+    force_basic_auth: yes
+    validate_certs : no
+    body_format: json
+
+    method : GET
+  register : org

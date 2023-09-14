@@ -1,0 +1,66 @@
+- name : Get job template id by name
+  uri :
+    url : "{{tower_ip}}api/v2/job_templates/?name={{job_template_name| default ('BA%20Master%20Playbook')}}"
+    user: "{{ login_user }}"
+    password: "{{ login_password }}"
+
+    method : GET
+    force_basic_auth: yes
+    validate_certs : no
+    body_format: json
+    status_code:
+        - 201
+        - 200
+        - 204
+  # delegate_to: localhost
+  register : op
+- set_fact:
+    jt_id : "{{op.json.results[0].id}}"
+- debug :
+    msg: Job Template ID is {{jt_id}}
+
+- name : Get Instance Group id by name
+  uri :
+    url : "{{tower_ip}}/api/v2/instance_groups/?name={{ansible_tower.instance_group_name | default('Risolated03')}}"
+    user: "{{ login_user }}"
+    password: "{{ login_password }}"
+
+    method : GET
+    force_basic_auth: yes
+    validate_certs : no
+    body_format: json
+    status_code:
+        - 201
+        - 200
+        - 204
+  # delegate_to: localhost
+  register : op
+- debug:
+    var=op
+- set_fact:
+    ig_id : "{{op.json.results[0].id}}"
+- debug :
+    msg: Instance Group ID of {{ansible_tower.instance_group_name}} is {{ig_id}}
+
+- name : Attach Instance Group to Job Template
+  uri :
+    url : "{{tower_ip}}/api/v2/job_templates/{{jt_id}}/instance_groups/"
+    user: "{{ login_user }}"
+    password: "{{ login_password }}"
+
+    method : POST
+    body : >
+      {
+        "associate": true,
+        "id": {{ig_id}}
+        }
+    force_basic_auth: yes
+    validate_certs : no
+    body_format: json
+    status_code:
+      - 200
+      - 201
+      - 204
+  # delegate_to: localhost
+  register : op
+- debug : var=op

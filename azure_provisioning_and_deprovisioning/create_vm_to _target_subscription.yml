@@ -1,0 +1,70 @@
+---
+- hosts: bastion
+  become: yes
+  vars:
+    - ansible_python_interpreter: /usr/bin/python3
+  # gather_facts: false
+  tasks:
+    # - name: Import the Microsoft repository key
+    #   shell: rpm --import https://packages.microsoft.com/keys/microsoft.asc
+
+    # - name: add packages-microsoft-com-prod repository
+    #   shell: dnf install -y https://packages.microsoft.com/config/rhel/8/packages-microsoft-prod.rpm
+
+    # - name: Install azure-cli
+    #   shell: dnf install azure-cli-2.36.0-1.el8
+
+    # - name: Install azure-cli
+    #   pip:
+    #     name: 
+    #       - azure-cli
+    #     executable: pip3
+
+    - name: Login to azure CLI
+      become: no
+      shell: az login --service-principal --username "{{azure_user}}"  --password "{{azure_pass}}" --tenant "{{lookup('env', 'AZURE_TENANT')}}"
+      no_log: true
+
+
+    - name: Create vm {{vm_name}}
+      become: no
+      shell: az vm create --resource-group "{{ resource_group }}" --name "{{vm_name}}" --image /SharedGalleries/f181c5d4-7cf7-4805-941e-e992f97869af-AZUREGOLDENIMAGES/Images/AZ-RHEL-V8.4/Versions/latest --admin-username "{{admin_user}}" --admin-password "{{admin_pass}}"
+
+    - name: Logout the current active account
+      become: no
+      shell: az logout
+
+    # - name: Create VM using shared image
+    #   azure.azcollection.azure_rm_virtualmachine:
+    #     client_id: "{{lookup('env', 'AZURE_CLIENT_ID')}}"
+    #     secret: "{{lookup('env', 'AZURE_SECRET')}}"
+    #     subscription_id: "{{lookup('env', 'AZURE_SUBSCRIPTION_ID')}}"
+    #     tenant: "{{lookup('env', 'AZURE_TENANT')}}"
+    #     resource_group: "{{ resource_group }}"
+    #     name: "{{ vm_name }}"
+    #     # short_hostname: "{{vm_name}}"
+    #     location: "{{vm_location}}"
+    #     vm_size: "{{vm_size}}"
+    #     virtual_network: "{{vnet}}"
+    #     subnet: "{{subnet}}"
+    #     os_type: "{{os|capitalize}}"
+    #     public_ip_allocation: "{{public_ip_allocation_method}}"
+    #     # network_interfaces: "{{nic}}"
+    #     admin_username: "{{admin_user}}"
+    #     admin_password: "{{admin_pass}}" 
+    #     managed_disk_type: "{{disk_type}}"
+    #     ssh_password_enabled: "{{ssh_enabled}}"
+    #     image:
+    #       # name: AZ-RHEL-V8.4
+    #       id: "/SharedGalleries/f181c5d4-7cf7-4805-941e-e992f97869af-AZUREGOLDENIMAGES/Images/AZ-RHEL-V8.4/Versions/latest"
+    #       # id: "/subscriptions/f181c5d4-7cf7-4805-941e-e992f97869af/resourceGroups/serverbuild/providers/Microsoft.Compute/galleries/GoldenOSImages/images/AZ-RHEL-V8.4/versions/003.210722.0"
+    #       # name: "{{image_name}}"
+    #       # resource_group: "{{resource_group}}"
+    #       # version: "{{current_image_version}}"
+    #       # offer: "{{image_offer}}"
+    #       # publisher: "{{image_publisher}}"
+    #       # sku: "{{image_sku}}"
+    #       # version: "{{current_image_version}}"
+    #     tags:
+    #       project: Automation_Factory
+    #   register: vm_info

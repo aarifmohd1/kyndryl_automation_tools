@@ -1,0 +1,34 @@
+- name : Find Inventory ID's matching "temp_inv"
+  uri :
+    url : "https://{{tower_fqdn_ip}}/api/v2/inventories/?name__startswith=temp_inv"
+    user : "{{ansible_tower_user_name}}"
+    password : "{{ansible_tower_user_password}}"
+    method : GET
+    force_basic_auth: yes
+    validate_certs : no
+    body_format: json
+    status_code:
+      - 200
+      - 201
+      - 202
+      - 204
+  register : temp_inv
+
+- name : Delete Temp Inventory
+  uri :
+    url : "https://{{tower_fqdn_ip}}/api/v2/inventories/{{item.id}}/"
+    user : "{{ansible_tower_user_name}}"
+    password : "{{ansible_tower_user_password}}"
+    method : DELETE
+    force_basic_auth: yes
+    validate_certs : no
+    body_format: json
+    status_code:
+        - 201
+        - 202
+        - 203
+        - 200
+        - 204
+  ignore_errors: true
+  with_items:
+    temp_inv.json.results

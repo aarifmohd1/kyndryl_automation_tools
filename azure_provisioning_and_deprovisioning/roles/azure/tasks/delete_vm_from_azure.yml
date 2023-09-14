@@ -1,0 +1,28 @@
+# - name: Remove a VM and all resources that were autocreated
+#   azure.azcollection.azure_rm_virtualmachine:
+#     client_id: "{{lookup('env', 'AZURE_CLIENT_ID')}}"
+#     secret: "{{lookup('env', 'AZURE_SECRET')}}"
+#     subscription_id: "{{lookup('env', 'AZURE_SUBSCRIPTION_ID')}}"
+#     tenant: "{{lookup('env', 'AZURE_TENANT')}}"
+#     resource_group: "{{ resource_group }}"
+#     name: "{{vm_name}}"
+#     # remove_on_absent: all_autocreated
+#     state: absent
+
+- name: Login to azure CLI
+  become: no
+  shell: az login --service-principal --username "{{azure_user}}"  --password "{{azure_pass}}" --tenant "{{lookup('env', 'AZURE_TENANT')}}"
+  no_log: true
+
+- include_tasks: fetch_vm_info_using_cli.yml
+
+- name: Delete vm {{vm_name}}
+  become: no
+  shell: az vm delete --resource-group "{{resource_group}}" --name "{{vm_name}}" --yes
+
+- include_tasks: delete_nsg_from_azure.yml
+  when: delete_nsg | bool 
+
+- name: Logout the current active account
+  become: no
+  shell: az logout

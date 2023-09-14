@@ -1,0 +1,232 @@
+- name: Prepare Collector authentication
+  set_fact:
+    curl_cmd: 'curl -k -s -S -H "Content-type: application/json" -H
+      "Accept: application/json"{%
+      if tower_oauth_token | length > 0 %} -H
+      "Authorization: Bearer $TOWER_OAUTH_TOKEN"
+      {% elif api_auth_by == "password" %} -u
+      "$TOWER_USERNAME:$TOWER_PASSWORD"{% elif api_auth_by == "token" %} -H
+      "Authorization: Bearer $TOWER_PASSWORD"{% endif %}'
+  vars:
+    tower_oauth_token: "{{ lookup('env','TOWER_OAUTH_TOKEN') | d('') }}"
+
+- name: Get count of projects
+  shell: '{{ hostvars["localhost"]["curl_cmd"] }}
+    "$TOWER_HOST/api/v2/projects/?format=json&organization__name=dtl&page_size=1{{ date_created_runtime }}"'
+  register: projects_count_ret
+
+- name: Extract projects count
+  set_fact: 
+    projects_count: "{{ (projects_count_ret.stdout
+      | from_json).count | int }}"
+
+- name: Get count of workflow jobs
+  shell: '{{ hostvars["localhost"]["curl_cmd"] }}
+    "$TOWER_HOST/api/v2/workflow_job_templates/{{ workflow_id }}/workflow_jobs/?page_size=1{{ date_started_runtime }}"'
+  register: workflow_jobs_count_ret
+
+- name: Get count of simplified workflow jobs
+  shell: '{{ hostvars["localhost"]["curl_cmd"] }}
+    "$TOWER_HOST/api/v2/workflow_job_templates/{{ simplified_workflow_id }}/workflow_jobs/?page_size=1{{ date_started_runtime }}"'
+  register: simplified_workflow_jobs_count_ret
+
+- name: Get count of single point entry workflow jobs
+  shell: '{{ hostvars["localhost"]["curl_cmd"] }}
+    "$TOWER_HOST/api/v2/workflow_job_templates/{{ single_point_entry_workflow_id }}/workflow_jobs/?page_size=1{{ date_started_runtime }}"'
+  register: single_point_entry_workflow_jobs_count_ret
+
+- name: Extract workflow jobs count
+  set_fact: 
+    workflow_jobs_count: "{{ (workflow_jobs_count_ret.stdout
+      | from_json).count | int }}"
+
+- name: Extract simplified workflow jobs count
+  set_fact: 
+    simplified_workflow_jobs_count: "{{ (simplified_workflow_jobs_count_ret.stdout
+      | from_json).count | int }}"
+
+- name: Extract simplified workflow jobs count
+  set_fact: 
+    single_point_entry_workflow_jobs_count: "{{ (single_point_entry_workflow_jobs_count_ret.stdout
+      | from_json).count | int }}"
+
+- name: Extract all jobs count
+  set_fact: 
+    jobs_count: "{{ workflow_jobs_count | int + simplified_workflow_jobs_count | int + single_point_entry_workflow_jobs_count | int }}"
+
+- name: Get count of users
+  shell: '{{ hostvars["localhost"]["curl_cmd"] }}
+    "$TOWER_HOST/api/v2/teams/100/users/?page_size=1{{ date_last_login_runtime }}"'
+  register: users_count_ret
+
+- name: Extract users count
+  set_fact: 
+    users_count: "{{ (users_count_ret.stdout
+      | from_json).count | int }}"
+
+- block:
+    - name: How many standard workflow jobs found
+      debug:
+        var: workflow_jobs_count
+
+    - name: Cycle through Workflow Jobs pages
+      include_tasks: controller_dtl_stats_cycle_jobs.yml
+      with_sequence: start=1 end="{{ end_at }}"
+      vars:
+        end_at: "{{ ((((workflow_jobs_count | int) / (page_size_runtime | int)) | round(0,'ceil')) | int) if (((workflow_jobs_count | int) / (page_size_runtime | int)) | round(0,'ceil')) | int > 0 else 1 }}"
+        template_id: "{{ workflow_id }}"
+  when: workflow_jobs_count | int > 0
+
+- block:
+    - name: How many simplified workflow jobs found
+      debug:
+        var: simplified_workflow_jobs_count
+
+    - name: Cycle through Simplified Workflow Jobs pages
+      include_tasks: controller_dtl_stats_cycle_jobs.yml
+      with_sequence: start=1 end="{{ end_at }}"
+      vars:
+        end_at: "{{ ((((simplified_workflow_jobs_count | int) / (page_size_runtime | int)) | round(0,'ceil')) | int) if (((simplified_workflow_jobs_count | int) / (page_size_runtime | int)) | round(0,'ceil')) | int > 0 else 1 }}"
+        template_id: "{{ simplified_workflow_id }}"
+  when: simplified_workflow_jobs_count | int > 0
+
+- block:
+    - name: How many single point entry workflow jobs found
+      debug:
+        var: single_point_entry_workflow_jobs_count
+
+    - name: Cycle through Single Point Entry Workflow Jobs pages
+      include_tasks: controller_dtl_stats_cycle_jobs.yml
+      with_sequence: start=1 end="{{ end_at }}"
+      vars:
+        end_at: "{{ ((((single_point_entry_workflow_jobs_count | int) / (page_size_runtime | int)) | round(0,'ceil')) | int) if (((single_point_entry_workflow_jobs_count | int) / (page_size_runtime | int)) | round(0,'ceil')) | int > 0 else 1 }}"
+        template_id: "{{ single_point_entry_workflow_id }}"
+  when: single_point_entry_workflow_jobs_count | int > 0
+
+- name: Get jobs extra vars as list
+  set_fact:
+    jobs_extra_vars: "{{ (jobs_extra_vars | d([])) + [item.extra_vars] }}"
+  loop: "{{ jobs_all | d([]) }}"
+
+- name: Get purposes as list and project URLs from SPE
+  set_fact:
+    purposes_list: "{{ (purposes_list | d([])) + [(item | from_json).kal_testlab_test_purpose | d('unknown')] }}"
+    spe_projects_list: "{{ (spe_projects_list | d([]) + [(item | from_json).git_url | d('')]) if (item | from_json).git_url is defined else (spe_projects_list | d([])) }}"
+  loop: "{{ jobs_extra_vars | d([]) }}"
+
+- name: Count purposes
+  set_fact:
+    purposes_list_counted: "{{ purposes_list_counted | combine({item: purposes_list_counted[item]|default(0) + 1}) }}"
+  loop: "{{ purposes_list | d([]) }}"
+  vars:
+    purposes_list_counted: {}
+
+- block:
+    - name: Cycle through Projects pages
+      include_tasks: controller_dtl_stats_cycle_projects.yml
+      with_sequence: start=1 end="{{ end_at }}"
+      vars:
+        end_at: "{{ ((((projects_count | int) / (page_size_runtime | int)) | round(0,'ceil')) | int) if (((projects_count | int) / (page_size_runtime | int)) | round(0,'ceil')) | int > 0 else 1 }}"
+
+- name: Get projects URLs as list
+  set_fact:
+    projects_urls: "{{ (projects_urls | d([])) + [item.scm_url | d('')] }}"
+  loop: "{{ projects_all | d([]) }}"
+
+- name: print projects_urls
+  debug:
+    var: projects_urls
+
+- name: print spe_projects_list
+  debug:
+    var: spe_projects_list
+
+- name: Join projects URLs with SPE projects
+  set_fact:
+    projects_urls: "{{ projects_urls + spe_projects_list }}"
+
+- name: Count all projects including SPE projects
+  set_fact: 
+    projects_count_all: "{{ projects_urls | length }}"
+
+- block:
+    - name: Cycle through Users pages
+      include_tasks: controller_dtl_stats_cycle_users.yml
+      with_sequence: start=1 end="{{ end_at }}"
+      vars:
+        end_at: "{{ ((((users_count | int) / (page_size_runtime | int)) | round(0,'ceil')) | int) if (((users_count | int) / (page_size_runtime | int)) | round(0,'ceil')) | int > 0 else 1 }}"
+
+- name: Get Users checksums
+  set_fact:
+    users_checksums: "{{ (users_checksums | d([])) + [item.username | d('') | checksum] }}"
+  loop: "{{ users_all | d([]) }}"
+
+- name: Set output data
+  set_fact:
+    results_machine_readable: 
+        calculated_day: "{{ date_since }}"
+        users: "{{ users_count | int }}"
+        projects: "{{ projects_count_all | int }}"
+        assets: "{{ projects_urls | d([]) | unique | length | int }}"
+        jobs: "{{ jobs_count | int }}"
+        purposes_test_of_deployment: "{{ purposes_list_counted['test of deployment'] | d(0) }}"
+        purposes_education: "{{ purposes_list_counted['education'] | d(0) }}"
+        purposes_code_development: "{{ purposes_list_counted['code development'] | d(0) }}"
+        purposes_client_demo: "{{ purposes_list_counted['client demo'] | d(0) }}"
+        assets_list: "{{ projects_urls | d([]) | unique }}"
+        users_checksums: "{{ users_checksums | d([]) | unique }}"
+    hello_world:
+        hello: "world"
+
+- name: Transform output data 2 json
+  set_fact:
+    results_machine_readable_json: "{{ results_machine_readable | to_json }}"
+    hello_world_json: "{{ hello_world | to_json }}"
+
+- name: Print results in custom stats
+  ansible.builtin.set_stats:
+    data:
+      results: "Statistics for OneLab Controller {{ lookup('env', 'TOWER_HOST') }}{{ start_date }}: {{ users_count }} users have accessed the environment. There are {{ projects_count }} projects to {{ projects_urls | d([]) | unique | length }} assets. There were executed {{ jobs_count }} jobs. Purposes of executions were {{ purposes_list_counted['code development'] | d('0') }} code developments, {{ purposes_list_counted['education'] | d('0') }} educations, {{ purposes_list_counted['test of deployment'] | d('0') }} tests of deployment and {{ purposes_list_counted['client demo'] | d('0') }} code client demos. List of assets: {{ projects_urls | d([]) | unique | join(', ') }}"
+      results_machine_readable: "{{ results_machine_readable }}"
+  vars:
+    start_date: "{{ ' since ' + date_since if ((date_since | d('') | length) > 0) else '' }}"
+
+#     - name: send notification to Teams webhook
+#       uri:
+#         url: "{{ kal_team_webhook }}"
+#         method: POST
+#         return_content: true
+#         body_format: json
+#         body: "{{ lookup('template', _card_name) }}"
+#         use_proxy: "{{ use_system_proxy | d(false) }}"
+#       register: teams_response
+#       until: teams_response.status == 200
+#       retries: 3
+#       delay: 30
+#       ignore_errors: true
+#       delegate_to: localhost
+#       vars:
+#         _card_name: "../msteams/iap_card.j2"
+#         tower_host: "{{ lookup('env', 'TOWER_HOST') }}"
+#         tower_job_suffix: "#/jobs/playbook/{{ awx_job_id }}"
+#       when: teams_notification|bool|d(false)
+
+# - name: Install elasticsearch
+#   command: python3 -m pip install elasticsearch
+
+# - name: Upgrade requests
+#   command: python3 -m pip install requests
+
+- name: Create python3 script
+  no_log: true
+  template:
+    src: push2elastic.py
+    dest: "./push2elastic.py"
+    
+# - name: cat python script
+#   command: "cat ./push2elastic.py"
+
+- name: Execute python script
+  command: "python3 ./push2elastic.py"
+  register: elastic_output
+  ignore_errors: true

@@ -1,0 +1,23 @@
+---
+# Tasks on Tower
+- hosts: localhost
+  connection: local
+  tasks:
+    - name: Tasks on localhost
+      debug:
+        msg: "Example task on localhost"
+    # Calling socks tunnel role if we have windows endpoint
+    - name: Role ensures that the socks tunnel is setup
+      import_role:
+        name: socks_tunnel
+
+- hosts: all
+  ignore_errors: true
+  tasks:
+    - name: Check IIS
+      win_command: curl --include --silent http://localhost/
+      register: temp
+    
+    - name: Print the result
+      debug:
+        var: temp

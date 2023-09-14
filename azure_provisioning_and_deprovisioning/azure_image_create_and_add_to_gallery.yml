@@ -1,0 +1,167 @@
+---
+- hosts: bastion
+  become: yes
+  vars:
+    - ansible_python_interpreter: /usr/bin/python3
+    - images: []
+    - image_versions: []
+    - available_versions: []
+  gather_facts: false
+  tasks:
+    # - name: copy requirements file on remote
+    #   template:
+    #       src: ./roles/azure//templates/requirements.txt.j2
+    #       dest: /tmp/requirements.txt
+    #       mode: 0777
+    # - name: Install Pre-req 
+    #   pip:
+    #     name: 
+    #       # - packaging
+    #       # - msrestazure
+    #       # - azure-mgmt-monitor
+    #       # - ansible[azure]
+    #       # - azure.storage
+    #       - azure-mgmt-recoveryservicesbackup
+    #       - azure-mgmt-recoveryservices
+    #     # requirements: /tmp/requirements.txt
+    #     executable: pip3
+    # - name: Split the .vhd name into list
+    #   set_fact:
+    #       vhd_objects: "{{blob_url.split('-')}}"
+
+    # - name: set variables as fact
+    #   set_fact:
+    #       publisher_name: "{{vhd_objects[0]}}"
+    #       offer_name: "{{vhd_objects[1]}}"
+    #       sku_name: "{{vhd_objects[2]}}"
+    #       shared_image_version: "{{vhd_objects[3]}}.{{vhd_objects[4]}}.0"
+    #       image_name: "{{vhd_objects[0]}}-{{vhd_objects[1]}}-{{vhd_objects[2]}}"
+    #       shared_image_name: "{{vhd_objects[0]}}-{{vhd_objects[1]}}-{{vhd_objects[2]}}"
+
+    # - set_fact:
+    #      image_type: "{{(blob_url is search('RHEL') or blob_url is search('rhel')) | ternary('packer','goi-windows')}}"
+
+    # - include_role:
+    #       name: azure
+    #       tasks_from: create_image
+    
+    # - include_role:
+    #       name: azure
+    #       tasks_from: create_image_gallery
+
+    # - include_role:
+    #       name: azure
+    #       tasks_from: add_image_to_gallery
+
+    # - include_role:
+    #     name: azure
+    #     tasks_from: version_the_image
+    #   vars:
+    #      managed_image_name: "{{image_name}}"
+        
+
+    # - include_role:
+    #     name: azure
+    #     tasks_from: list_image_from_gallery
+
+    # - include_role:
+    #     name: azure
+    #     tasks_from: list_versions_of_an_image
+    #   loop: "{{image_list.images}}"
+
+    # - name: Set versions
+    #   set_fact:
+    #     available_versions: "{{available_versions + [ item.id.split('/')[-3] + '-' + item.id.split('/')[-1] ]}}"
+    #   # loop: "{{image_versions | json_query('[*][*].name')}}"
+    #   loop: "{{image_versions | flatten }}"
+
+    # - name: Set versions
+    #   set_fact:
+    #     available_versions: "{{available_versions |join('\\n')}}"
+
+    # - name: remove trailing \n
+    #   set_fact:
+    #     available_versions: "{{available_versions[:-1]}}"
+
+    # - debug:
+    #       msg: "{{item}}"
+    #   loop: "{{image_versions | json_query('[*][*].name')}}"
+
+    - name: Login to azure CLI
+      become: no
+      shell: az login --service-principal --username "{{azure_user}}"  --password "{{azure_pass}}" --tenant "{{lookup('env', 'AZURE_TENANT')}}"
+      no_log: true
+
+
+    - include_role:
+        name: azure
+        tasks_from: list_shared_image_from_gallery
+
+    - name: Set versions
+      set_fact:
+        images: "{{images |join('\\n')}}"
+
+    # - include_role:
+    #     name: azure
+    #     tasks_from: list_versions_of_shared_image
+    #   loop: "{{images}}"
+
+    # - name: Set versions
+    #   set_fact:
+    #     available_versions: "{{available_versions + [ item.uniqueId.split('/')[-3] + '-' + item.uniqueId.split('/')[-1] ]}}"
+    #   loop: "{{image_versions | flatten }}"
+
+    - name: Logout the current active account
+      become: no
+      shell: az logout
+
+- hosts: localhost
+  tasks:
+    - name: getting the ID for org {{ org_name }}
+      uri :
+        url : "{{lookup('env', 'TOWER_HOST')}}/api/v2/organizations/?name={{ org_name}}"
+        user: "{{ lookup('env', 'TOWER_USERNAME') }}"
+        password: "{{ lookup('env', 'TOWER_PASSWORD') }}"
+        force_basic_auth: yes
+        validate_certs : no
+        body_format: json
+        method : GET
+      register : org
+
+    - name: checking and assinging organization {{ org_name }}
+      set_fact:
+        org_id: "{{ org.json.results[0].id }}"
+      when: org.json.results is defined
+      failed_when:
+        - org.json.count == 0
+
+    - set_fact:
+          job_template: "{{org_name}}_job_template_azure_vm_provisioning_sba"
+
+    - name: getting the ID for template {{ job_template }}
+      uri :
+        url : "{{lookup('env', 'TOWER_HOST')}}/api/v2/organizations/{{org_id}}/job_templates/?name={{ job_template}}"
+        user: "{{ lookup('env', 'TOWER_USERNAME') }}"
+        password: "{{ lookup('env', 'TOWER_PASSWORD') }}"
+        method : GET
+        force_basic_auth: yes
+        validate_certs : no
+      register : job_template_out
+      
+    - name: Set job template id as a fact, if get call success
+      set_fact:
+        job_template_id: "{{job_template_out.json.results[0].id}}"
+      when: job_template_out.json.results is defined
+
+    - set_fact:
+        images: "{{hostvars['bastion']['images']}}"
+
+
+    - name: Update survey for vm provisioning job template
+      include_role:
+        name: azure
+        tasks_from: create_or_update_survey_for_vm_provisioning
+         
+
+      
+      

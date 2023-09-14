@@ -1,0 +1,23 @@
+- hosts: all
+  ignore_errors: true
+  tasks:
+    - name: Create a directory if it does not exist
+      become: true
+      become_user: db2inst1
+      file:
+        path: /home/db2inst1/database
+        state: directory
+        mode: '0755'
+
+    - name: Get db2 version
+      command: db2ls
+
+    - name: Test db2
+      become: true
+      become_user: db2inst1
+      shell: ". /home/db2inst1/sqllib/db2profile;db2start;db2 \"create db sample on '/home/db2inst1/database'\";db2 connect to sample;db2 \"CREATE TABLE sample (personid int, lastname varchar(255), address varchar(255));\";db2 \"INSERT INTO sample (personid, lastname, address) VALUES (1,'Batman','Gotham')\";db2 \"select * from sample\""
+
+    - name: Test db2
+      become: true
+      become_user: db2inst1
+      shell: ". /home/db2inst1/sqllib/db2profile;db2 connect to sample;db2 \"select * from sample\""

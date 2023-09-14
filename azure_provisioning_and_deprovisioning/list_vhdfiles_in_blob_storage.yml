@@ -1,0 +1,104 @@
+---
+- hosts: bastion
+  become: yes
+  vars:
+    - ansible_python_interpreter: /usr/bin/python3
+    - blob_list: []
+  gather_facts: false
+  tasks:
+    - name: copying token.yml file
+      template:
+        src: ./roles/azure/templates/token_storage.yml.j2
+        dest: /tmp/token_storage.yml
+    
+    - name: Get Token
+      shell: "python3 /tmp/token_storage.yml"
+      register: token_storage
+
+    - debug:
+         msg: "{{token_storage}}"
+    
+    - name: List blobs
+      uri:
+        url: "https://{{storage_account}}.blob.core.windows.net/{{container}}?restype=container&comp=list"
+        method: GET
+        status_code: 200
+        force_basic_auth: no
+        validate_certs: False
+        return_content: yes
+        headers:
+          Content-Type: application/json
+          Authorization: Bearer {{ token_storage.stdout }}
+          x-ms-version: 2017-11-09
+      register: blobs
+
+    - debug:
+         msg: "{{blobs.content}}"
+
+    - name: Read an element's attribute values
+      xml:
+        xmlstring: "{{blobs.content}}"
+        xpath: /EnumerationResults/Blobs/Blob/Name
+        content: text
+      register: xmlresp
+
+    - name: Show an attribute value
+      set_fact:
+         blob_list: "{{blob_list + [item.Name.split('/')[-1]]}}"
+      when: '".vhd" in item.Name'
+      loop: "{{xmlresp.matches}}"
+
+    - name: Join the blob list 
+      set_fact:
+          blob_list: "{{blob_list | join('\\n')}}"
+
+    - name: Show an attribute value
+      debug:
+        var: blob_list
+
+    - name: getting the ID for org {{ org_name }}
+      uri :
+        url : "{{lookup('env', 'TOWER_HOST')}}/api/v2/organizations/?name={{ org_name}}"
+        user: "{{ lookup('env', 'TOWER_USERNAME') }}"
+        password: "{{ lookup('env', 'TOWER_PASSWORD') }}"
+        force_basic_auth: yes
+        validate_certs : no
+        body_format: json
+        method : GET
+      register : org
+
+    - name: checking and assinging organization {{ org_name }}
+      set_fact:
+        org_id: "{{ org.json.results[0].id }}"
+      when: org.json.results is defined
+      failed_when:
+        - org.json.count == 0
+
+    - set_fact:
+          job_template: "{{org_name}}_job_template_azure_fetch_image_sab"
+
+    - name: getting the ID for template {{ job_template }}
+      uri :
+        url : "{{lookup('env', 'TOWER_HOST')}}/api/v2/organizations/{{org_id}}/job_templates/?name={{ job_template}}"
+        user: "{{ lookup('env', 'TOWER_USERNAME') }}"
+        password: "{{ lookup('env', 'TOWER_PASSWORD') }}"
+        method : GET
+        force_basic_auth: yes
+        validate_certs : no
+      register : job_template_out
+      
+
+    - name: Set job template id as a fact, if get call success
+      set_fact:
+        job_template_id: "{{job_template_out.json.results[0].id}}"
+      when: job_template_out.json.results is defined
+
+    - name: Update survey for create image job template
+      include_role:
+        name: azure
+        tasks_from: create_or_update_survey_for_create_image
+
+    # - set_fact:
+    #     parsed_xml_data: "{{ blobs.content | parse_xml('blobs.specs') }}"
+    # - debug:
+    #     var: parsed_xml_data

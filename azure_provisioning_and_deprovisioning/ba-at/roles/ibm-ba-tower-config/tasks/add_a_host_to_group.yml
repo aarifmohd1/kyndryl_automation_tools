@@ -1,0 +1,22 @@
+---
+- name : Add host to group {{group_out.json.name}}
+  uri :
+    url : "{{tower_ip}}/api/v2/groups/{{group_id}}/hosts/"
+    user: "{{ login_user }}"
+    password: "{{ login_password }}"
+
+    method : POST
+    body : >
+      { "name": "{{ host_name }}",
+        "inventory": "{{inv_id}}"
+       }
+    force_basic_auth: yes
+    validate_certs : no
+    body_format: json
+    status_code:
+      - 200
+      - 201
+      - 202
+      - 204
+  # delegate_to: localhost
+  register : host_out

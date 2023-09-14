@@ -1,0 +1,5 @@
+- hosts: all
+  ignore_errors: true
+  tasks:
+    - name: Check Nexus
+      shell: "curl --include --silent http://localhost:8081/ | grep Server"

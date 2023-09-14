@@ -1,0 +1,5 @@
+- name: socks_tunnel
+  src:
+    "https://github.kyndryl.net/Continuous-Engineering/ansible-role-event-socks-tunnel.git"
+  scm: 'git'
+  version: 23.5/main

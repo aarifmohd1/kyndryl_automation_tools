@@ -1,0 +1,21 @@
+---
+- name : Creating inventory {{ inventory_name }}
+  uri :
+    url : "{{tower_ip}}/api/v2/inventories/"
+    user: "{{ login_user }}"
+    password: "{{ login_password }}"
+    force_basic_auth: yes
+    method : POST
+    body :
+      description: "Create inventory"
+        # "kind" : " ",
+      name: "{{inventory_name}}"
+      organization: "{{ org_id }}"
+
+    validate_certs : no
+    body_format: json
+    status_code:
+      - 201
+      - 204
+  # delegate_to: localhost
+  register : inv

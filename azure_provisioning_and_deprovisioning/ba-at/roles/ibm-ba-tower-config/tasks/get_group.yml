@@ -1,0 +1,14 @@
+---
+- name : query a group {{ group_name }}
+  uri :
+    url : "{{tower_ip}}/api/v2/inventories/{{inv_id}}/groups/?name={{ group_name}}"
+    user: "{{ login_user }}"
+    password: "{{ login_password }}"
+    method : GET
+    force_basic_auth: yes
+    validate_certs : no
+    body_format: json
+    status_code:
+      - 201
+      - 200
+  register: group_out

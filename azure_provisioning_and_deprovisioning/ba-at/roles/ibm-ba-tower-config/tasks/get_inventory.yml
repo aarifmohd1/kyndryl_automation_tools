@@ -1,0 +1,17 @@
+---
+- name : Check if there is any inventory matching  {{ inventory_name }}
+  uri :
+    url : "{{tower_ip}}/api/v2/organizations/{{org_id}}/inventories/?name={{ inventory_name }}"
+    user: "{{ login_user }}"
+    password: "{{ login_password }}"
+
+    method : GET
+    force_basic_auth: yes
+    validate_certs : no
+    body_format: json
+    status_code:
+        - 201
+        - 200
+        - 204
+  # delegate_to: localhost
+  register : inv

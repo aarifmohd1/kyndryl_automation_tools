@@ -1,0 +1,20 @@
+- name: Login to azure CLI
+  become: no
+  shell: az login --service-principal --username "{{azure_user}}"  --password "{{azure_pass}}" --tenant "{{lookup('env', 'AZURE_TENANT')}}"
+  no_log: true
+
+- name: Fetch all resources for resource group - "{{resource_group}}"
+  become: no
+  shell: az resource list -g "{{resource_group}}" -o table
+  register: resources
+
+- debug:
+    msg: "{{ resources.stdout_lines }}"
+
+- set_stats:
+    data:
+      fetched_resources: "{{ resources.stdout_lines }}"
+
+- name: Logout the current active account
+  become: no
+  shell: az logout

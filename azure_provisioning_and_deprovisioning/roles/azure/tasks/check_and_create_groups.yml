@@ -1,0 +1,35 @@
+---
+- name: check group {{item}} exist in inventory {{ in_id }}
+  include_role:
+    name: ba-at
+    tasks_from: get_group
+  vars:
+    group_name: "{{ item }}"
+    tower_ip: "{{ lookup('env', 'TOWER_HOST') }}"
+    login_user: "{{ lookup('env', 'TOWER_USERNAME') }}"
+    login_password: "{{ lookup('env', 'TOWER_PASSWORD') }}"
+    inv_id: "{{ in_id }}"
+
+
+- name: adding the group {{item}} to inventory
+  include_role:
+    name: ba-at
+    tasks_from: add_a_group_to_inventory
+  vars:
+    group_name: "{{ item }}"
+    tower_ip: "{{ lookup('env', 'TOWER_HOST') }}"
+    login_user: "{{ lookup('env', 'TOWER_USERNAME') }}"
+    login_password: "{{ lookup('env', 'TOWER_PASSWORD') }}"
+    group_description: "vm_creation_inventory_group"
+    inv_id: "{{ in_id }}"
+  when: group_out.json.count == 0
+
+- name: checking and assinging group id, if get call success
+  set_fact:
+    grp_id: "{{ grp_id + [group_out.json.results[0].id] }}"
+  when: group_out.json.results is defined
+
+- name: checking and assinging group id, if create call success
+  set_fact:
+    grp_id: "{{ grp_id + [group_out.json.id] }}"
+  when: group_out.json.id is defined and group_out.json.id != ""

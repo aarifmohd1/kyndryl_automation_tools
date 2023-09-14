@@ -1,0 +1,14 @@
+---
+
+- name : Check if there is a job template  {{ job_template_name }} for org {{ org_id}}
+  uri :
+    url : "{{tower_ip}}/api/v2/organizations/{{org_id}}/job_templates/?name={{ job_template_name}}"
+    user: "{{ login_user }}"
+    password: "{{ login_password }}"
+
+    method : GET
+    force_basic_auth: yes
+    validate_certs : no
+
+  # delegate_to: localhost
+  register : job_template_out

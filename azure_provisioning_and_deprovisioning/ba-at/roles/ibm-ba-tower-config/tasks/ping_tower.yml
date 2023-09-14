@@ -1,0 +1,13 @@
+- name : Check whether Ansible tower is accessible
+  uri :
+    url : "{{tower_ip}}/api/v2/ping/"
+    user: "{{ login_user }}"
+    password: "{{ login_password }}"
+
+    method : GET
+    force_basic_auth: yes
+    validate_certs : no
+  # delegate_to: localhost
+  register : op
+- debug :
+    msg: "{% if op.failed == false %} The Tower at '{{tower_ip}}' is up. {% else %} The Tower at '{{tower_ip}}' can not be reached {% endif %}"

@@ -1,0 +1,8 @@
+- name: Get jobs
+  shell: '{{ hostvars["localhost"]["curl_cmd"] }}
+    "$TOWER_HOST/api/v2/workflow_job_templates/{{ template_id }}/workflow_jobs/?format=json&page_size={{ page_size_runtime }}&page={{ item }}{{ date_started_runtime }}"'
+  register: jobs
+
+- name: Store jobs
+  set_fact:
+    jobs_all: "{{ jobs_all | default([]) + (jobs.stdout | from_json).results }}"

@@ -1,0 +1,16 @@
+---
+- name : Add group {{ group_name }} to inv {{ inv_id }}
+  uri :
+    url : "{{tower_ip}}/api/v2/inventories/{{inv_id}}/groups/"
+    user: "{{ login_user }}"
+    password: "{{ login_password }}"
+    method : POST
+    body : >
+      { "description" : "{{ group_description }}",
+        "name": "{{ group_name }}"
+      }
+    force_basic_auth: yes
+    validate_certs : no
+    body_format: json
+    status_code: 201
+  register: group_out

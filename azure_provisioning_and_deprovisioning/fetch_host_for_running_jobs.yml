@@ -1,0 +1,42 @@
+---
+- hosts: localhost
+  vars:
+     host_list: []
+  tasks:
+    - name: getting the ID for org {{ org_name }}
+      uri :
+        url : "{{lookup('env', 'TOWER_HOST')}}/api/v2/organizations/?name={{ org_name}}"
+        user: "{{ lookup('env', 'TOWER_USERNAME') }}"
+        password: "{{ lookup('env', 'TOWER_PASSWORD') }}"
+        force_basic_auth: yes
+        validate_certs : no
+        body_format: json
+        method : GET
+      register : org
+
+    - name: checking and assinging organization {{ org_name }}
+      set_fact:
+        org_id: "{{ org.json.results[0].id }}"
+      when: org.json.results is defined
+      failed_when:
+        - org.json.count == 0
+
+    - name : Get jobs from {{org_name}} organization
+      uri :
+        url : "{{lookup('env', 'TOWER_HOST')}}/api/v2/jobs/?organization={{org_id}}&status={{job_stat}}"
+        user: "{{ lookup('env', 'TOWER_USERNAME') }}"
+        password: "{{ lookup('env', 'TOWER_PASSWORD') }}"
+        force_basic_auth: yes
+        validate_certs : no
+        body_format: json
+        method : GET
+      register : jobs
+
+    - name: Filter out all host and create a list
+      set_fact:
+          host_list: "{{host_list+[item.limit]}}"
+      loop: "{{jobs.json.results}}"
+
+    - name: Flatten the host list
+      set_fact:
+          host_list: "{{host_list | flatten}}"

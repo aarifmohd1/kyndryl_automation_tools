@@ -1,0 +1,9 @@
+
+- name: Get users
+  shell: '{{ hostvars["localhost"]["curl_cmd"] }}
+    "$TOWER_HOST/api/v2/teams/100/users/?format=json&page_size={{ page_size_runtime }}&page={{ item }}{{ date_last_login_runtime }}"'
+  register: users
+
+- name: Store users
+  set_fact:
+    users_all: "{{ users_all | default([]) + (users.stdout | from_json).results }}"

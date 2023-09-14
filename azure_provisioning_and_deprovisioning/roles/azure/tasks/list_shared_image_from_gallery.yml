@@ -1,0 +1,14 @@
+
+
+- name: List shared image definitions
+  become: no
+  shell: az sig image-definition list-shared --location eastus --gallery-unique-name "f181c5d4-7cf7-4805-941e-e992f97869af-{{shared_gallery_name|upper}}"
+  register: image_def
+
+- debug: 
+    msg: "{{image_def.stdout}}"
+
+- name: Set image list as fact
+  set_fact:
+      images: "{{images + [item.name]}}"
+  loop: "{{image_def.stdout}}"

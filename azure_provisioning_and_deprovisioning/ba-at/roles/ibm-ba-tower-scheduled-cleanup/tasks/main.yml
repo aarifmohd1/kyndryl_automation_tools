@@ -1,0 +1,3 @@
+---
+# tasks file for ibm-ba-tower-scheduled-cleanup
+- import_tasks: delete_mapped_inventory.yml
