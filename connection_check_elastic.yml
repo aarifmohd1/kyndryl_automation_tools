@@ -1,0 +1,31 @@
+- hosts: localhost
+  connection: local
+  tasks:
+    # Calling socks tunnel role if we have windows endpoint
+    - name: Role ensures that the socks tunnel is setup
+      import_role:
+        name: socks_tunnel
+      when: not (skip_socks | d(false))
+
+    - name: Install elasticsearch
+      command: python3 -m pip install elasticsearch
+
+    - name: Upgrade requests
+      command: python3 -m pip install requests
+
+# Tasks on endpoints
+- hosts: all
+  ignore_unreachable: true
+  tasks:
+    - name: push2elastic
+      include_role:
+        name: push2elastic
+        tasks_from: connection_check
+
+- hosts: localhost
+  connection: local
+  tasks:
+    - name: push2elastic
+      include_role:
+        name: push2elastic
+        tasks_from: connection_report

@@ -1,0 +1,25 @@
+---
+- hosts: localhost
+  connection: local
+  no_log: false
+  vars:
+    elastic_index: "delivery.automation.lab.usage"
+    date_since: "{{ '%Y-%m-%d'|strftime(ansible_date_time.epoch|int - 86400) }}"
+    date_until: "{{ '%Y-%m-%d'|strftime(ansible_date_time.epoch|int) }}"
+    workflow_id: "2315"
+    simplified_workflow_id: "2441"
+    single_point_entry_workflow_id: "3397"
+    page_size_runtime: "{{ page_size | d('200') }}"
+    date_started_runtime: "{{ '&started__gt=' + date_since + '&started__lt=' + date_until }}"
+    date_created_runtime: "{{ '&created__gt=' + date_since + '&created__lt=' + date_until }}"
+    date_last_login_runtime: "{{ '&last_login__gt=' + date_since + '&last_login__lt=' + date_until }}"
+  tasks:
+    - name: Install elasticsearch
+      command: python3 -m pip install elasticsearch
+
+    - name: Upgrade requests
+      command: python3 -m pip install requests
+
+    - name: push2elastic
+      include_role:
+        name: push2elastic
