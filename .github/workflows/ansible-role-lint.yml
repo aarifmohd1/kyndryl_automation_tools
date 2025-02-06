@@ -2,8 +2,9 @@
 name: Ansible Lint
 
 on:
-  pull_request:
-    branches: [main, dev]
+  workflow_dispatch:
+#  pull_request:
+#    branches: [main, dev]
 
 jobs:
   lint:
